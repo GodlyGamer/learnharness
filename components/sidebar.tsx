@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { MenuShell } from "@/components/menu-shell";
 import { DeleteSessionDialog } from "@/components/delete-session-dialog";
 import type { ChatDeleteMode } from "@/src/core";
-import { DumbbellIcon, FileTextIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import { DumbbellIcon, FileTextIcon, LibraryIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
 import { ActivitySection } from "@/components/activity-dock";
 import { CoverageMenuBlock } from "@/components/extraction-coverage";
 import { LhMark } from "@/components/lh-mark";
@@ -713,6 +713,19 @@ function SessionsSidebar() {
 					>
 						<FileTextIcon className="size-3" />
 						Practice papers
+					</button>
+					{/* Modules (personal fork): every study module, adding one a click away. */}
+					<button
+						type="button"
+						data-testid="modules"
+						onClick={() => router.push("/modules")}
+						aria-current={pathname === "/modules" ? "page" : undefined}
+						className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs uppercase tracking-wider transition-colors hover:bg-accent hover:text-foreground ${
+							pathname === "/modules" ? "bg-accent text-foreground" : "text-muted-foreground"
+						}`}
+					>
+						<LibraryIcon className="size-3" />
+						Modules
 					</button>
 				</div>
 

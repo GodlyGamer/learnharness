@@ -21,12 +21,15 @@ import { fileURLToPath } from "node:url";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const svg = readFileSync(path.join(root, "build", "icon-flat.svg"), "utf8");
+// Personal fork (2026-10-24): the Windows icon has its own design — a T in
+// an engineering hard hat (build/icon-windows.svg); Linux keeps the flat one.
+const windowsSvg = readFileSync(path.join(root, "build", "icon-windows.svg"), "utf8");
 
-const render = (size) => new Resvg(svg, { fitTo: { mode: "width", value: size } }).render(size, size).asPng();
+const render = (size, source = svg) => new Resvg(source, { fitTo: { mode: "width", value: size } }).render(size, size).asPng();
 
 // ---- build/icon.ico: ICONDIR + PNG entries ------------------------------
 const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
-const pngs = ICO_SIZES.map(render);
+const pngs = ICO_SIZES.map((size) => render(size, windowsSvg));
 // Header (6) + one 16-byte directory entry per image, then the PNGs.
 const header = Buffer.alloc(6 + ICO_SIZES.length * 16);
 header.writeUInt16LE(0, 0); // reserved
