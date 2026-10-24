@@ -67,6 +67,9 @@ declare global {
 			/** Auto-update channel (Wave C, 2026-10-10): "lh:update-status" pushes once a staged update exists. */
 			onUpdateStatus?: (cb: (status: { status: string; version: string | null }) => void) => () => void;
 			installUpdate?: () => void;
+			/** The synced workspace folder (personal fork): pick another; the shell
+			 *  restarts the server on it and reloads. Resolves false if cancelled. */
+			changeWorkspace?: () => Promise<boolean>;
 		};
 	}
 }

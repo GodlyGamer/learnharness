@@ -52,6 +52,16 @@ if (exists(leakedData)) {
 // (the DEV BYOK key store, 0600) byte-identical into the DMG (caught in
 // the 2026-10-08 payload audit; excluded in next.config.ts — this guard
 // makes a regression loud instead of silent).
+// 2b') Personal fork: the study tree (personal module materials), the
+// downloaded Antigravity server and the repo's .claude/ must not ride
+// along either (excluded in next.config.ts; the skills ship separately).
+for (const personal of ["study", ".tools", ".claude"]) {
+	if (exists(path.join(STANDALONE, personal))) {
+		console.error(`[build-server] REFUSING: standalone contains ${personal}/ — personal files would ship in the app.`);
+		console.error("             Check outputFileTracingExcludes in next.config.ts.");
+		process.exit(1);
+	}
+}
 for (const secret of ["auth.json", ".env", ".env.local"]) {
 	if (exists(path.join(STANDALONE, secret))) {
 		console.error(`[build-server] REFUSING: standalone contains ${secret} — dev secrets would ship in the app.`);
@@ -86,6 +96,22 @@ for (const asset of [
 		console.error(`[build-server] prompt asset missing from the trace: ${asset}`);
 		process.exit(1);
 	}
+}
+
+// 4) The Claude subscription engine (personal fork): the Agent SDK finds its
+//    Claude Code binary by a runtime-resolved optional dependency the
+//    tracer can't see (next.config.ts includes it). Without it every
+//    turn and the in-app sign-in fail, so refuse a payload that lacks it.
+const claudeBin = path.join(
+	STANDALONE,
+	"node_modules",
+	"@anthropic-ai",
+	`claude-agent-sdk-${process.platform}-${process.arch}`,
+	process.platform === "win32" ? "claude.exe" : "claude",
+);
+if (!exists(claudeBin)) {
+	console.error(`[build-server] the Claude Code binary is missing from the trace: ${path.relative(STANDALONE, claudeBin)}`);
+	process.exit(1);
 }
 
 console.log("[build-server] server payload ready:", STANDALONE);

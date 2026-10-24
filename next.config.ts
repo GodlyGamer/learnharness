@@ -40,6 +40,15 @@ const nextConfig: NextConfig = {
 			"data/**/*",
 			"auth.json",
 			".env*",
+			// Personal fork (2026-10-24, caught in the first Windows payload
+			// audit): the same sweep shipped the repo's study/ (personal module
+			// materials), .tools/ (the downloaded Antigravity server) and
+			// .claude/ into the bundle. The app ships the skills separately
+			// (electron-builder.yml extraResources); build-server.mjs refuses
+			// a payload that still has any of them.
+			"study/**/*",
+			".tools/**/*",
+			".claude/**/*",
 		],
 	},
 	// Empirically verified gaps (2026-09-17 standalone smoke): the tracer

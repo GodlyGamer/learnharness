@@ -1,6 +1,6 @@
 {
 	"name": "learnharness",
-	"version": "0.3.4",
+	"version": "0.3.5",
 	"license": "AGPL-3.0-only",
 	"author": {
 		"name": "Amos Blomqvist",
@@ -21,9 +21,10 @@
 		"typecheck": "tsc --noEmit",
 		"desktop:dev": "concurrently -k \"next dev\" \"node scripts/electron-dev.mjs\"",
 		"login": "node scripts/claude-login.mjs",
-		"setup:gemini": "node scripts/setup-antigravity.mjs",
-		"login:gemini": "node scripts/antigravity-login.mjs",
+		"setup:gemini": "tsx scripts/setup-antigravity.ts",
+		"login:gemini": "tsx scripts/antigravity-login.ts",
 		"dev:fresh": "bash scripts/dev-fresh.sh",
+		"desktop:dist:win": "node -e \"for (const d of ['dist', '.next/standalone']) require('fs').rmSync(d, { recursive: true, force: true })\" && next build && node scripts/build-server.mjs && node scripts/smoke-server.mjs && electron-builder --win --x64",
 		"desktop:dist": "rm -rf dist .next/standalone && next build && node scripts/build-server.mjs && node scripts/smoke-server.mjs && DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer} APPLE_KEYCHAIN_PROFILE=LH_NOTARY APPLE_TEAM_ID=JS6XN22HY6 electron-builder --mac --arm64"
 	},
 	"dependencies": {

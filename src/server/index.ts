@@ -49,3 +49,8 @@ export * from "./model-catalog.ts";
 export * from "./study.ts";
 export * from "./study-jobs.ts";
 export * from "./study-graph.ts";
+
+// "This computer" setup for the desktop app (personal fork, 2026-10-24):
+// sign-ins, the Gemini server, the paper tools, the first-launch record.
+export * from "./machine-setup.ts";
+export { geminiInstallState, geminiLoginState, geminiStatus, startGeminiInstall, startGeminiLogin } from "./antigravity-setup.ts";

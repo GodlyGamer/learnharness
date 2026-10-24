@@ -28,6 +28,8 @@ function withPayload(test: (fixture: {
 		write(path.join("public", "asset.txt"));
 		write(path.join(STANDALONE, PROMPT));
 		write(path.join(STANDALONE, "src", "agent", "prompts", "teacher", "20-teaching.md"));
+		// The Claude subscription engine's binary (the build refuses without it).
+		write(path.join(STANDALONE, "node_modules", "@anthropic-ai", `claude-agent-sdk-${process.platform}-${process.arch}`, process.platform === "win32" ? "claude.exe" : "claude"));
 		test({ root, write, run: () => spawnSync(process.execPath, [path.join(root, "scripts", "build-server.mjs")], {
 			cwd: root, encoding: "utf8", timeout: 10_000,
 		}) });
@@ -75,7 +77,16 @@ describe("desktop standalone payload", () => {
 	});
 
 	it("still refuses leaked developer data or keys", () => {
-		for (const leaked of ["data/chat.json", "auth.json", ".env", ".env.local"]) {
+		for (const leaked of [
+			"data/chat.json",
+			"auth.json",
+			".env",
+			".env.local",
+			// Personal fork: module materials, the downloaded Gemini server, .claude/.
+			"study/modules/1M1/materials/notes.pdf",
+			".tools/antigravity-acp/installed.json",
+			".claude/launch.json",
+		]) {
 			withPayload(({ write, run }) => {
 				write(path.join(STANDALONE, leaked));
 				const result = run();

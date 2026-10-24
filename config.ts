@@ -29,6 +29,25 @@ export const STUDY_ROOT = process.env.LH_STUDY_DIR
 	? path.resolve(process.env.LH_STUDY_DIR)
 	: path.join(ROOT, "study");
 
+/**
+ * The workspace (personal fork, 2026-10-24): the folder the paper skills
+ * run in — it holds study/ and the .claude/ skills. The desktop app sets
+ * LH_WORKSPACE_DIR to the learner's synced folder (Google Drive); repo
+ * work keeps the repo itself.
+ */
+export const WORKSPACE_ROOT = process.env.LH_WORKSPACE_DIR
+	? path.resolve(process.env.LH_WORKSPACE_DIR)
+	: ROOT;
+
+/**
+ * Per-machine state that must NOT sync: downloaded programs (the
+ * Antigravity server) and this machine's setup record. The desktop app
+ * points LH_LOCAL_DIR at userData; repo work keeps the git-ignored .tools/.
+ */
+export const LOCAL_ROOT = process.env.LH_LOCAL_DIR
+	? path.resolve(process.env.LH_LOCAL_DIR)
+	: path.join(ROOT, ".tools");
+
 export const PATHS = {
 	root: ROOT,
 	/** Teacher system prompt — the agent's instructions (src/agent/). */

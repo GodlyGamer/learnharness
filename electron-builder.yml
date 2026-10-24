@@ -94,6 +94,14 @@ extraResources:
     to: server
     filter:
       - "standalone/**/*"
+  # The practice-paper skills and their agents (personal fork, 2026-10-24):
+  # the shell copies them into the learner's workspace/.claude on launch,
+  # where the headless skill runs load them (src/server/study-jobs.ts).
+  - from: .claude
+    to: claude
+    filter:
+      - "skills/**/*"
+      - "agents/**/*"
 mac:
   icon: build/icon.icon
   # zip rides next to dmg (flipped 2026-10-08): Squirrel.Mac — Electron's
@@ -171,14 +179,13 @@ linux:
   # Both targets update via electron-updater 6.8.9. AppImage replaces its
   # own file; deb uses dpkg/apt and may request administrator permission.
 publish:
-  # Update feed = GitHub Releases (decided 2026-10-08): latest-mac.yml +
-  # zip/blockmap live on releases; electron-updater reads them anonymously.
-  # REQUIRES THE REPO TO BE PUBLIC before 0.3.0 ships — anonymous downloads
-  # from a private repo are impossible, and a token baked into the app
-  # would be a leak. desktop:dist passes no --publish flag, so builds never
-  # upload; publishing happens at release time (GH_TOKEN + --publish).
+  # Update feed = GitHub Releases on the PERSONAL FORK (2026-10-24): the
+  # upstream feed would replace this build with the original app.
+  # electron-updater reads the fork's releases anonymously (the fork is
+  # public). Builds never upload by themselves; uploads land in a draft
+  # (the release tooling's verified shape, scripts/verify-release.ts),
+  # which is then published — the updater can't see drafts.
   - provider: github
-    owner: amosblomqvist
+    owner: GodlyGamer
     repo: learnharness
-    # All three CI jobs contribute assets; only the owner publishes it.
     releaseType: draft

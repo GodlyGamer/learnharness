@@ -29,6 +29,7 @@ const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
 const net = require("node:net");
+const os = require("node:os");
 const path = require("node:path");
 
 // Mirrors SIDEBAR_AUTOCLOSE in components/sidebar.tsx — keep in sync (the
@@ -45,7 +46,155 @@ const PRODUCT_NAME = "LearnHarness";
 // "LearnHarness-dev".
 app.setName(PRODUCT_NAME);
 const AUTH_FILE = () => path.join(app.getPath("userData"), "auth.json");
-const DATA_DIR = () => path.join(app.getPath("userData"), "data");
+/** Per-machine state that must not sync (downloaded programs, the setup
+ *  record): config.ts LOCAL_ROOT. */
+const LOCAL_DIR = () => path.join(app.getPath("userData"), "local");
+
+/* ── The workspace (personal fork, 2026-10-24) ─────────────────────────────
+ * Everything the learner makes lives in ONE folder they pick, meant to sit
+ * in Google Drive so a PC and a laptop share it:
+ *   <workspace>/data/      chats, graph, settings (LH_DATA_DIR)
+ *   <workspace>/study/     the practice-paper tree (LH_STUDY_DIR)
+ *   <workspace>/.claude/   the paper skills, refreshed from the app on launch
+ * The choice is per machine (userData/workspace.json): Drive's letter can
+ * differ between computers. Sign-ins, keys (auth.json), logs and the
+ * Antigravity download stay in userData. Drive can't merge two computers
+ * writing at once, so <workspace>/.lh-open.json says who has it open. */
+const WORKSPACE_FILE = () => path.join(app.getPath("userData"), "workspace.json");
+const OPEN_FILE = (ws) => path.join(ws, ".lh-open.json");
+const OPEN_STALE_MS = 3 * 60 * 1000;
+let workspace = null;
+let openHeartbeat = null;
+
+function readWorkspace() {
+	try {
+		// A hand-edited file may start with a byte-order mark (Windows editors).
+		const { folder } = JSON.parse(fs.readFileSync(WORKSPACE_FILE(), "utf-8").replace(/^﻿/, ""));
+		if (typeof folder === "string" && fs.existsSync(folder)) return folder;
+	} catch {
+		/* none chosen yet */
+	}
+	return null;
+}
+
+/** Google Drive for desktop mounts "My Drive" on a drive letter (G: by
+ *  default); the picker starts there when it exists. */
+function driveFolder() {
+	if (process.platform === "win32") {
+		for (const letter of "GHIJKLMNOPQRSTUVWXYZDEF") {
+			const myDrive = `${letter}:\\My Drive`;
+			if (fs.existsSync(myDrive)) return myDrive;
+		}
+	}
+	return app.getPath("documents");
+}
+
+async function pickWorkspace({ first }) {
+	for (;;) {
+		if (first) {
+			const { response } = await dialog.showMessageBox({
+				type: "info",
+				title: PRODUCT_NAME,
+				message: "Choose where LearnHarness keeps your work",
+				detail:
+					"Pick or create a folder in Google Drive (for example My Drive\\LearnHarness). Your chats, knowledge graph, settings and study modules go there, so your other computer can use them too.\n\nYou can change it later in Settings → This computer.",
+				buttons: ["Choose folder…", "Quit"],
+				defaultId: 0,
+				cancelId: 1,
+			});
+			if (response === 1) return null;
+		}
+		const result = await dialog.showOpenDialog({
+			title: "LearnHarness folder",
+			defaultPath: workspace ?? driveFolder(),
+			buttonLabel: "Use this folder",
+			properties: ["openDirectory", "createDirectory", "promptToCreate"],
+		});
+		if (!result.canceled && result.filePaths[0]) {
+			const folder = result.filePaths[0];
+			fs.mkdirSync(folder, { recursive: true });
+			return folder;
+		}
+		if (!first) return null;
+	}
+}
+
+/** Remember the folder for this machine (once it's been claimed). */
+function saveWorkspace(folder) {
+	fs.writeFileSync(WORKSPACE_FILE(), `${JSON.stringify({ folder }, null, "\t")}\n`);
+	log(`workspace: ${folder}`);
+}
+
+/** Copy the paper skills and agents the app ships into <workspace>/.claude
+ *  (the skill runs load them from there). Overwrites the shipped files;
+ *  anything else in .claude is left alone. */
+function refreshWorkspaceSkills(ws) {
+	const shipped = app.isPackaged ? path.join(process.resourcesPath, "claude") : path.join(__dirname, "..", ".claude");
+	for (const dir of ["skills", "agents"]) {
+		const from = path.join(shipped, dir);
+		if (!fs.existsSync(from)) continue;
+		try {
+			fs.cpSync(from, path.join(ws, ".claude", dir), { recursive: true, force: true });
+		} catch (err) {
+			log(`couldn't refresh ${dir} in the workspace: ${err?.message ?? err}`);
+		}
+	}
+}
+
+/** Warn when another computer has the workspace open; then claim it. */
+async function claimWorkspace(ws) {
+	try {
+		const other = JSON.parse(fs.readFileSync(OPEN_FILE(ws), "utf-8"));
+		const age = Date.now() - Date.parse(other.at);
+		if (other.host && other.host !== os.hostname() && age < OPEN_STALE_MS) {
+			const { response } = await dialog.showMessageBox({
+				type: "warning",
+				title: PRODUCT_NAME,
+				message: `LearnHarness looks open on ${other.host}`,
+				detail:
+					"Using the same folder on two computers at once can make Google Drive keep conflicting copies of your chats and graph. Close it there first, or open it here anyway.",
+				buttons: ["Open anyway", "Quit"],
+				defaultId: 1,
+				cancelId: 1,
+			});
+			if (response === 1) return false;
+		}
+	} catch {
+		/* nobody has it open */
+	}
+	const beat = () => {
+		try {
+			fs.writeFileSync(OPEN_FILE(ws), JSON.stringify({ host: os.hostname(), at: new Date().toISOString() }));
+		} catch {
+			/* Drive offline: best effort */
+		}
+	};
+	beat();
+	clearInterval(openHeartbeat);
+	openHeartbeat = setInterval(beat, 60 * 1000);
+	return true;
+}
+
+function releaseWorkspace(ws) {
+	clearInterval(openHeartbeat);
+	if (!ws) return;
+	try {
+		const mine = JSON.parse(fs.readFileSync(OPEN_FILE(ws), "utf-8"));
+		if (mine.host === os.hostname()) fs.rmSync(OPEN_FILE(ws), { force: true });
+	} catch {
+		/* already gone */
+	}
+}
+
+/** The server's view of the workspace (config.ts). */
+function workspaceEnv(ws) {
+	return {
+		LH_WORKSPACE_DIR: ws,
+		LH_DATA_DIR: path.join(ws, "data"),
+		LH_STUDY_DIR: path.join(ws, "study"),
+		LH_LOCAL_DIR: LOCAL_DIR(),
+	};
+}
 
 /** The packaged standalone server (extraResources → Resources/server).
  *  In dev LH_DEV_URL short-circuits everything: no spawn, no packaging —
@@ -196,7 +345,7 @@ function startServer(port) {
 					NODE_ENV: "production",
 					PORT: String(port),
 					HOSTNAME: "127.0.0.1", // the server defaults to 0.0.0.0 — never
-					LH_DATA_DIR: DATA_DIR(),
+					...workspaceEnv(workspace),
 					// The auth/keys store — the child reads AND writes this file itself
 					// (no env injection anymore: a spawn-time copy would shadow every
 					// settings-page key change until restart; env wins over file).
@@ -235,9 +384,10 @@ function waitUntilUp(url, tries = 150) {
 }
 
 function killServer() {
-	if (!serverProcess) return;
+	if (!serverProcess) return Promise.resolve();
 	const child = serverProcess;
 	serverProcess = null;
+	const exited = new Promise((resolve) => child.once("exit", resolve));
 	child.kill("SIGTERM");
 	setTimeout(() => {
 		try {
@@ -246,6 +396,7 @@ function killServer() {
 			/* already gone */
 		}
 	}, 3000);
+	return exited;
 }
 
 /** Windows/Linux window-controls overlay for a theme: transparent over the
@@ -559,7 +710,10 @@ async function main() {
 	});
 
 	// The child must not outlive us — cover every quit path.
-	app.on("before-quit", killServer);
+	app.on("before-quit", () => {
+		killServer();
+		releaseWorkspace(workspace);
+	});
 	process.on("exit", killServer);
 	process.on("SIGHUP", killServer);
 
@@ -571,8 +725,15 @@ async function main() {
 	const devUrl = process.env.LH_DEV_URL;
 	const url = devUrl ?? `http://127.0.0.1:${await freePort()}`;
 	if (!devUrl) {
+		workspace = readWorkspace() ?? (await pickWorkspace({ first: true }));
+		if (!workspace || !(await claimWorkspace(workspace))) {
+			app.quit();
+			return;
+		}
+		saveWorkspace(workspace);
+		refreshWorkspaceSkills(workspace);
 		log(`starting server: ${serverEntry()}`);
-		log(`data dir: ${DATA_DIR()}${fs.existsSync(AUTH_FILE()) ? " · auth.json: present" : " · auth.json: ABSENT (no BYOK keys yet)"}`);
+		log(`workspace: ${workspace}${fs.existsSync(AUTH_FILE()) ? " · auth.json: present" : " · auth.json: ABSENT (no BYOK keys yet)"}`);
 		await startServer(new URL(url).port);
 		await waitUntilUp(url);
 		log(`server up: ${url}`);
@@ -588,6 +749,29 @@ async function main() {
 	// are log lines — this can never block boot.
 	setupAutoUpdater();
 	ipcMain.on("lh:update-install", () => installUpdateNow());
+	// Settings → This computer → Change folder…: pick, move the open-marker,
+	// restart the server on the new folder (same port, so the window's origin
+	// and storage stay), reload.
+	ipcMain.handle("lh:workspace:change", async (event) => {
+		if (devUrl) return false; // dev runs on the repo's own folders
+		const win = BrowserWindow.fromWebContents(event.sender);
+		const next = await pickWorkspace({ first: false });
+		if (!next || next === workspace) return false;
+		releaseWorkspace(workspace);
+		if (!(await claimWorkspace(next))) {
+			await claimWorkspace(workspace);
+			return false;
+		}
+		workspace = next;
+		saveWorkspace(workspace);
+		refreshWorkspaceSkills(workspace);
+		await killServer();
+		await startServer(new URL(url).port);
+		await waitUntilUp(url);
+		log(`server restarted on workspace ${workspace}`);
+		win?.webContents.reload();
+		return true;
+	});
 
 	// Sidebar-at-narrow-window (owner, 2026-09-17): the renderer auto-closes
 	// the sidebar below SIDEBAR_AUTOCLOSE (928px); opening it again at that

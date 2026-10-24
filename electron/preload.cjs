@@ -46,4 +46,7 @@ contextBridge.exposeInMainWorld("lh", {
 		return () => ipcRenderer.removeListener("lh:update-status", listener);
 	},
 	installUpdate: () => ipcRenderer.send("lh:update-install"),
+	// The synced workspace folder (personal fork, 2026-10-24): a folder picker
+	// in the shell, which restarts the server on the new folder and reloads.
+	changeWorkspace: () => ipcRenderer.invoke("lh:workspace:change"),
 });

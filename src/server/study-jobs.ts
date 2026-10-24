@@ -3,7 +3,8 @@
  * /make-papers <CODE> [topics] and /mark-attempts <CODE> <PAIR_ID>, each a
  * Claude Code session through the Agent SDK on the subscription login —
  * the same engine the tutor uses, so no key. The skills and their
- * subagents load from the repo's .claude/ (settingSources: project).
+ * subagents load from the workspace's .claude/ (settingSources: project) —
+ * the repo in dev, the learner's synced folder in the desktop app.
  *
  * The fence (SETUP_PROMPT.md §4, "limit file access to study/"): a
  * PreToolUse hook denies every file tool aimed outside study/ (reading
@@ -18,8 +19,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { query, type HookCallback, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { ROOT } from "../../config.ts";
+import { WORKSPACE_ROOT } from "../../config.ts";
 import { childEnv } from "../agent/claude-code.ts";
+import { withToolPath } from "./machine-setup.ts";
 import { insideStudy, listModuleCodes, moduleDir, moduleInfo, studyRoot } from "./study.ts";
 import { syncPairToGraph } from "./study-graph.ts";
 import { stores } from "./stores.ts";
@@ -64,9 +66,9 @@ export const studyFence: HookCallback = async (input) => {
 			},
 		};
 	}
-	const abs = path.resolve(ROOT, raw);
+	const abs = path.resolve(WORKSPACE_ROOT, raw);
 	const readOnly = input.tool_name === "Read" || input.tool_name === "Glob" || input.tool_name === "Grep";
-	const inClaude = abs.startsWith(path.join(ROOT, ".claude") + path.sep);
+	const inClaude = abs.startsWith(path.join(WORKSPACE_ROOT, ".claude") + path.sep);
 	if (insideStudy(abs) || (readOnly && inClaude)) return {};
 	return {
 		hookSpecificOutput: {
@@ -77,16 +79,10 @@ export const studyFence: HookCallback = async (input) => {
 	};
 };
 
-/** PATH for the run: Strawberry Perl (latexmk needs it under MiKTeX) is
- *  prepended when installed, in case the app started before the install. */
+/** PATH for the run: the paper tools' install folders go in front, in case
+ *  they were installed after the app started (machine-setup.ts). */
 function jobEnv(): Record<string, string | undefined> {
-	const env = childEnv();
-	if (process.platform === "win32") {
-		const extra = ["C:\\Strawberry\\perl\\bin", "C:\\Strawberry\\c\\bin"].filter((p) => fs.existsSync(p));
-		const key = Object.keys(env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
-		env[key] = [...extra, env[key] ?? ""].join(path.delimiter);
-	}
-	return env;
+	return withToolPath(childEnv());
 }
 
 function textOf(msg: SDKMessage): string | null {
@@ -142,7 +138,7 @@ async function run(job: StudyJob, prompt: string): Promise<void> {
 		const q = query({
 			prompt,
 			options: {
-				cwd: ROOT,
+				cwd: WORKSPACE_ROOT,
 				model: "claude-opus-5-5",
 				settingSources: ["project"],
 				skills: [job.kind],

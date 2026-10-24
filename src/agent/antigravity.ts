@@ -4,7 +4,7 @@
  * Antigravity ACP server (agy_acp_server, from the ACP registry; SHA-256
  * verified, Google-signed, kept in .tools/). ACP = Agent Client Protocol,
  * JSON-RPC over stdio — the protocol IDEs use to drive Antigravity.
- * Requests ride the learner's Google sign-in (npm run login:gemini); no key.
+ * Requests ride the learner's Google sign-in (src/server/antigravity-setup.ts); no key.
  * (Gemini CLI's personal sign-in was shut off by Google — Antigravity is
  * its supported successor.)
  *
@@ -48,7 +48,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
-import { ROOT } from "../../config.ts";
+import { LOCAL_ROOT } from "../../config.ts";
 import { TRANSCRIPT_NOTE, transcriptBlocks } from "./claude-code.ts";
 
 export const ANTIGRAVITY_PROVIDER_ID = "antigravity";
@@ -61,7 +61,7 @@ export const ANTIGRAVITY_VERSION = "1.4.3";
 const ANTIGRAVITY_MODEL_IDS = ["gemini-3.8-flash", "gemini-3.1-pro-preview"];
 
 const LOGIN_HINT =
-	"Gemini isn't signed in on this computer. In the LearnHarness folder run `npm.cmd run login:gemini`, sign in with Google, then try again.";
+	"Gemini isn't signed in on this computer. Open Settings → This computer, sign in with Google, then try again.";
 
 export function antigravityProvider(googleModels: readonly Model<Api>[]): Provider {
 	const models = ANTIGRAVITY_MODEL_IDS.flatMap((id) => {
@@ -100,16 +100,25 @@ export function antigravityProvider(googleModels: readonly Model<Api>[]): Provid
 function serverCommand(): { cmd: string; args: string[]; cwd: string } {
 	const override = process.env.LH_ANTIGRAVITY_ACP;
 	if (override) return override.endsWith(".mjs") ? { cmd: process.execPath, args: [override], cwd: path.dirname(override) } : { cmd: override, args: [], cwd: path.dirname(override) };
-	// npm run setup:gemini records what it installed; without that record,
-	// fall back to the version this engine was built against.
-	const tools = path.join(ROOT, ".tools", "antigravity-acp");
+	const { cmd, args } = installedAntigravity();
+	return { cmd, args, cwd: path.dirname(cmd) };
+}
+
+/** Where this machine keeps the downloaded server (never synced). */
+export function antigravityDir(): string {
+	return path.join(LOCAL_ROOT, "antigravity-acp");
+}
+
+/** The server the installer recorded in installed.json; without that
+ *  record, the version this engine was built against. */
+export function installedAntigravity(): { version: string; cmd: string; args: string[] } {
 	let installed: { version?: string; cmd?: string; args?: string[] } = {};
 	try {
-		installed = JSON.parse(fs.readFileSync(path.join(tools, "installed.json"), "utf-8"));
+		installed = JSON.parse(fs.readFileSync(path.join(antigravityDir(), "installed.json"), "utf-8"));
 	} catch {}
 	const version = installed.version ?? ANTIGRAVITY_VERSION;
-	const exe = path.join(tools, version, installed.cmd ?? (process.platform === "win32" ? "agy_acp_server.exe" : "agy_acp_server.par"));
-	return { cmd: exe, args: installed.args ?? [], cwd: path.dirname(exe) };
+	const file = installed.cmd ?? (process.platform === "win32" ? "agy_acp_server.exe" : "agy_acp_server.par");
+	return { version, cmd: path.join(antigravityDir(), version, file), args: installed.args ?? [] };
 }
 
 export function antigravityInstalled(): boolean {
@@ -386,7 +395,7 @@ async function run(
 	};
 
 	if (!antigravityInstalled()) {
-		fail("error", "The Antigravity server isn't installed. Run `npm run setup:gemini`, then `npm run login:gemini`.");
+		fail("error", "Gemini isn't installed on this computer. Open Settings → This computer and install it.");
 		return;
 	}
 	if (!process.env.LH_ANTIGRAVITY_ACP && !antigravitySignedIn()) {

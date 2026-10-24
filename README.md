@@ -80,6 +80,13 @@ npm run desktop:dev  # the desktop app; or `npm run dev` for http://localhost:30
 
 Check the login at any time with `npm run login -- status`.
 
+### The Windows app
+
+`npm.cmd run desktop:dist:win` builds `dist/LearnHarness-<version>-x64-setup.exe`. The installer isn't signed, so the first time Windows says "Windows protected your PC": choose **More info → Run anyway**. Releases are on [this fork's Releases page](https://github.com/GodlyGamer/learnharness/releases), and the app updates itself from there.
+
+- **Your folder:** on first launch the app asks where to keep your work. Pick a folder in Google Drive (for example `My Drive\LearnHarness`) and your PC and laptop share chats, the knowledge graph, settings and study modules. The app warns you if the folder is already open on your other computer, because Drive can't merge two computers writing at once.
+- **Set up this computer:** the next screen signs you in to Claude, can install Gemini and sign you in with Google, and can install the paper tools (Python with sympy, numpy and PyMuPDF; MiKTeX; Strawberry Perl) through winget and pip. These stay per machine; they're in Settings → This computer afterwards.
+
 ## Development and support
 
 ```bash

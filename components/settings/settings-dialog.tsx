@@ -49,6 +49,7 @@ import { KeysSection } from "./keys-section.tsx";
 import { Hint } from "@/components/ui/hint";
 import { AppearanceSection, GraphSection } from "./appearance-section.tsx";
 import { KeyboardSection } from "./keyboard-section.tsx";
+import { MachineSetup } from "@/components/setup/machine-setup";
 
 /** Owner (2026-09-20): hints earn their place — mechanics-explaining
  *  prose is out; only the keyboard note stays (storage location is a
@@ -60,6 +61,7 @@ const SECTIONS = [
 	{ id: "appearance", label: "Appearance" },
 	{ id: "graph", label: "Graph" },
 	{ id: "keyboard", label: "Keyboard", hint: "Stored on this device" },
+	{ id: "computer", label: "This computer" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
@@ -373,6 +375,15 @@ export function SettingsDialogBody({
 											}
 										/>
 									</SettingsRow>
+								</SettingsSection>
+							)}
+							{active === "computer" && (
+								<SettingsSection
+									title="This computer"
+									hint="Sign-ins and programs on this machine. They don't sync."
+									testid="section-computer"
+								>
+									<MachineSetup />
 								</SettingsSection>
 							)}
 							{active === "keys" && (
