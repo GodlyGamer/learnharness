@@ -189,13 +189,13 @@ export function AppearanceSection({
 
 	return (
 		<>
-			<SettingsRow label="Theme" hint={THEME_LABEL[resolved.mode]} testid="row-mode">
+			<SettingsRow label="Theme" hint={THEME_LABEL[appearance?.mode ?? resolved.mode]} testid="row-mode">
 				<div className="lh-theme-switch lh-glass lh-glass-sm" role="group" aria-label="theme" data-testid="select-mode">
 					{APPEARANCE_MODES.map((mode) => (
 						<button
 							key={mode}
 							type="button"
-							aria-pressed={resolved.mode === mode}
+							aria-pressed={(appearance?.mode ?? resolved.mode) === mode}
 							aria-label={THEME_LABEL[mode]}
 							title={THEME_LABEL[mode]}
 							onClick={() => onSectionChange({ ...appearance, mode })}
@@ -212,7 +212,7 @@ export function AppearanceSection({
 			>
 				<CommitInput
 					value={appearance?.background ?? ""}
-					placeholder="#141414"
+					placeholder="theme ground"
 					ariaLabel="background hex"
 					testid="input-background"
 					onCommit={(v) => onSectionChange({ ...appearance, background: v === "" ? null : v })}
@@ -313,7 +313,7 @@ export function AppearanceSection({
 				<CommitInput
 					type="number"
 					value={String(md?.headingWeight ?? "")}
-					placeholder="900"
+					placeholder="700"
 					ariaLabel="heading weight"
 					testid="input-heading-weight"
 					onCommit={(v) => {

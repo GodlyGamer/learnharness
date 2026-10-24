@@ -37,10 +37,11 @@ describe("stats bar", () => {
 		assert.ok(!html.includes('data-testid="stats-summary"'), "no summary button pre-chat");
 		assert.ok(!html.includes('data-testid="stats-context"'), "no context figure pre-chat");
 		assert.ok(!html.includes('data-testid="stats-cost"'), "no cost figure pre-chat");
-		// no turns, no settings, catalog not loaded → both control labels
-		// "—" (the thinking button shows just the level, like the model
-		// button shows just the model name — no prefix, no dot separator)
-		assert.match(html, /data-testid="stats-model"[^>]*>\s*<span[^>]*>—<\/span>/);
+		// no turns, no settings, catalog not loaded → the model label shows
+		// the subscription floor's strong model (personal fork), the
+		// thinking label "—" (no catalog entry yet to read levels from) —
+		// just the name / level, no prefix, no dot separator
+		assert.match(html, /data-testid="stats-model"[^>]*>\s*<span[^>]*>[^<—]+<\/span>/);
 		assert.match(html, /data-testid="stats-thinking"[^>]*>\s*<span[^>]*>—<\/span>/);
 		assert.ok(!html.includes("aria-hidden>·"), "no dot between the controls");
 		// the control reads as a button: pill border + dropdown chevron
@@ -60,10 +61,10 @@ describe("stats bar", () => {
 		// pi catalog price 0.15/0.5 per 1M (drifted in pi-ai 0.87.1):
 		// each turn 10k×0.15 + 1k×0.5 = $0.002 → two = $0.0040
 		assert.match(html, /data-testid="stats-cost">\$0\.0040</);
-		// model button label: SSR (record fetch not run yet) reads "—" —
-		// the strong slot arrives client-side via GET /api/settings; the
-		// turn log below still folds the ACTUAL models billed
-		assert.match(html, /data-testid="stats-model"[^>]*>\s*<span[^>]*>—<\/span>/);
+		// model button label: SSR (record fetch not run yet) reads the
+		// subscription floor's strong model; the turn log below still folds
+		// the ACTUAL models billed
+		assert.match(html, /data-testid="stats-model"[^>]*>\s*<span[^>]*>[^<—]+<\/span>/);
 	});
 
 	it("shows — for cost when every turn is unpriceable, never a fake $0", () => {

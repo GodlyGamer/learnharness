@@ -138,10 +138,12 @@ describe("the emphasis-ink factory ruling (globals.css)", () => {
 		assert.ok(!css.includes("--lh-ink-italic: #6fa9d6"), "italic factory is not the old blue");
 	});
 
-	it("both blocks default the inks to the regular text color", () => {
+	it("the base theme block defaults the inks to the regular text color", () => {
+		// Mentaljineer skin: Light and Nocturne inherit the inks from the one
+		// base (:root / dark) block — they only redefine the palette.
 		const css = fs.readFileSync("app/globals.css", "utf-8");
-		assert.equal((css.match(/--lh-ink-strong: var\(--foreground\)/g) ?? []).length, 2, "both theme blocks");
-		assert.equal((css.match(/--lh-ink-italic: var\(--foreground\)/g) ?? []).length, 2, "both theme blocks");
+		assert.equal((css.match(/--lh-ink-strong: var\(--foreground\)/g) ?? []).length, 1, "base theme block");
+		assert.equal((css.match(/--lh-ink-italic: var\(--foreground\)/g) ?? []).length, 1, "base theme block");
 	});
 
 	it("the appearance rows' empty-state labels say 'same as text'", () => {

@@ -115,9 +115,12 @@ describe("SessionRow", () => {
 	});
 
 	it("active row is visually marked by the background alone (owner, round 5: no weight change)", () => {
-		const html = render(item({}), true);
-		assert.ok(html.includes("bg-accent"), "active background");
-		assert.ok(!html.includes("font-medium"), "weight is not a second channel doing the same job");
+		const active = render(item({}), true);
+		const idle = render(item({}), false);
+		assert.ok(active.includes("bg-accent"), "active background");
+		// Every row title shares one weight; activity never changes it.
+		const weights = (html: string) => (html.match(/font-(normal|medium|semibold|bold)/g) ?? []).join(",");
+		assert.equal(weights(active), weights(idle), "weight is not a second channel doing the same job");
 	});
 });
 
