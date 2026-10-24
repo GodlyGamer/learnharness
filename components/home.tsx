@@ -1,5 +1,7 @@
 "use client";
 
+import { PhotoStrip, PlusMenu } from "@/components/composer";
+import { stashFirstMessagePhotos, useChatPhotos } from "@/components/photo-utils";
 import { ModulePicker, useStudyModule } from "@/components/module-picker";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,7 +15,7 @@ import { DictationBar, joinDictation, useDictation } from "@/components/dictatio
 import { useFieldCycle } from "@/components/field-cycle";
 import { SidebarToggle } from "@/components/sidebar";
 import { StatsBar } from "@/components/stats-bar";
-import type { TurnUsage } from "@/src/core";
+import { MAX_CHAT_IMAGES, type TurnUsage } from "@/src/core";
 
 /**
  * Home — the knowledge graph is the main view, full-bleed edge to edge
@@ -95,6 +97,7 @@ export function Home({
 	 *  Not enforcing any input format — the picks are a convenience. */
 	const [mode, setMode] = useState<"teach" | "practice">("teach");
 	const [studyModule, setStudyModule] = useStudyModule();
+	const homePhotos = useChatPhotos(MAX_CHAT_IMAGES);
 	const [practiceProps, setPracticeProps] = useState<{ id: string; name: string; statement: string }[]>([]);
 	const [chainSelectOpen, setChainSelectOpen] = useState(false);
 	// The chain table is CONTROLLED off this id set (the lifted pick).
@@ -114,7 +117,7 @@ export function Home({
 	};
 	const begin = async () => {
 		const t = topicRef.current.trim();
-		if (!t || busy) return;
+		if ((!t && homePhotos.photos.length === 0) || busy) return;
 		// Unconfigured: the send INTERCEPTS into the setup flow (the draft
 		// stays in the textarea; the learner sends it after Save).
 		if (!configured) {
@@ -143,13 +146,15 @@ export function Home({
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					title: t,
+					title: t || "Photo question",
 					...(mode === "practice" ? { kind: "practice" } : {}),
 					...(studyModule ? { module: studyModule } : {}),
 					...(practiceProps.length > 0 ? { graphContext: { propositions: practiceProps } } : {}),
 				}),
 			});
 			const { id } = (await res.json()) as { id: string };
+			// The opening message's photos wait for the chat page (photo-utils).
+			stashFirstMessagePhotos(id, homePhotos.photos);
 			// No settings PUT on create (per-session models, owner
 			// 2026-09-28): the SERVER stamps the newborn from the strong
 			// slot — the same default this surface's model control edits.
@@ -245,12 +250,27 @@ export function Home({
 						)}
 					/>
 					<form
-						className="flex items-end gap-1.5 rounded-2xl border bg-card p-1.5 shadow-lg"
+						className="flex flex-col rounded-2xl border bg-card p-1.5 shadow-lg"
 					onSubmit={(e) => {
 						e.preventDefault();
 						void start();
 					}}
+					onDragOver={(e) => {
+						if (Array.from(e.dataTransfer.items).some((i) => i.type.startsWith("image/"))) e.preventDefault();
+					}}
+					onDrop={(e) => {
+						const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+						if (files.length === 0) return;
+						e.preventDefault();
+						homePhotos.add(files);
+					}}
 				>
+					{homePhotos.photos.length > 0 && <PhotoStrip photos={homePhotos.photos} onRemove={homePhotos.remove} testid="home-photos" />}
+					{homePhotos.error && (
+						<p className="px-2 pb-1 text-xs text-destructive">Couldn&apos;t attach that photo ({homePhotos.error}). Try a JPEG or PNG.</p>
+					)}
+					<div className="flex items-end gap-1.5">
+					<PlusMenu onAddPhotos={homePhotos.add} />
 					<textarea
 						ref={topicInputRef}
 						value={topic}
@@ -273,6 +293,12 @@ export function Home({
 								void start();
 							}
 						}}
+						onPaste={(e) => {
+							const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith("image/"));
+							if (files.length === 0) return;
+							e.preventDefault();
+							homePhotos.add(files);
+						}}
 						placeholder={mode === "practice" ? "What do you want to practice?" : "What do you want to learn?"}
 						autoFocus
 						rows={1}
@@ -283,11 +309,12 @@ export function Home({
 					<button
 						type="submit"
 						aria-label="Start session"
-						disabled={(!topic.trim() && !dictation.active) || busy}
+						disabled={(!topic.trim() && !dictation.active && homePhotos.photos.length === 0) || busy}
 						className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-primary text-primary-foreground transition-colors hover:opacity-90 disabled:opacity-40"
 					>
 						<CornerDownLeftIcon className="size-5" />
 					</button>
+					</div>
 					</form>
 					{/* Same as the chat view's under-composer stats bar (owner) — no
 					    session yet, so the LEFT side renders nothing (wave 7 sweep)

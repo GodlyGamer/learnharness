@@ -1,7 +1,7 @@
 "use client";
 
 import { PhotoStrip, PlusMenu } from "@/components/composer";
-import { filesToChatPhotos, type ChatPhoto } from "@/components/photo-utils";
+import { useChatPhotos } from "@/components/photo-utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownIcon, ChevronRightIcon, PlayIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -319,14 +319,7 @@ function QuestionDockForm({
 	const [thinking, setThinking] = useState("");
 	/* Photos of working (personal fork, 2026-10-24): the footer's + button,
 	 * paste or drop — they ride the answer to the model as images. */
-	const [photos, setPhotos] = useState<ChatPhoto[]>([]);
-	const [photoError, setPhotoError] = useState<string | null>(null);
-	const addPhotos = (files: File[]) => {
-		setPhotoError(null);
-		filesToChatPhotos(files)
-			.then((added) => setPhotos((ps) => [...ps, ...added].slice(0, MAX_CHAT_IMAGES)))
-			.catch((e: unknown) => setPhotoError(e instanceof Error ? e.message : String(e)));
-	};
+	const { photos, add: addPhotos, remove: removePhoto, error: photoError } = useChatPhotos(MAX_CHAT_IMAGES);
 	const pastePhotos = (e: React.ClipboardEvent) => {
 		const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith("image/"));
 		if (files.length === 0) return;
@@ -861,7 +854,7 @@ function QuestionDockForm({
 					</div>
 					{photos.length > 0 && (
 						<div className="px-1.5 pt-1">
-							<PhotoStrip photos={photos} onRemove={(id) => setPhotos((ps) => ps.filter((p) => p.id !== id))} testid="dock-photos" />
+							<PhotoStrip photos={photos} onRemove={removePhoto} testid="dock-photos" />
 						</div>
 					)}
 					{photoError && (

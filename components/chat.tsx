@@ -1,6 +1,6 @@
 "use client";
 
-import { filesToChatPhotos, type ChatPhoto } from "@/components/photo-utils";
+import { peekFirstMessagePhotos, takeFirstMessagePhotos, useChatPhotos } from "@/components/photo-utils";
 import { createContext, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useChatSession } from "@/components/session";
 import { visibleQueuedSteers } from "@/components/session-core";
@@ -252,11 +252,16 @@ export function Chat({
 	// (initialPromptOwed — the pure gate, pinned in the test suite).
 	const sentInitial = useRef(false);
 	useEffect(() => {
-		if (!sentInitial.current && initialPromptOwed(initialMessages, initialPrompt)) {
-			sentInitial.current = true;
-			void send({ type: "text", text: initialPrompt! });
-		}
-	}, [initialPrompt, initialMessages, send]);
+		if (sentInitial.current) return;
+		// Photos attached on the new-session composer wait in photo-utils;
+		// a photo-only opening message has no prompt text but is still owed.
+		const opening = peekFirstMessagePhotos(chatId);
+		if (!initialPromptOwed(initialMessages, initialPrompt || (opening.length ? " " : undefined))) return;
+		sentInitial.current = true;
+		const images = takeFirstMessagePhotos(chatId).map(({ data, mimeType }) => ({ data, mimeType }));
+		const text = initialPrompt ?? "";
+		void send(images.length ? { type: "text", text, images } : { type: "text", text });
+	}, [chatId, initialPrompt, initialMessages, send]);
 
 	// A turn running server-side, attached to no live view of ours (navigate
 	// away mid-turn, or a wake turn discovered mid-session): the reattach
@@ -548,14 +553,7 @@ export function Chat({
 	/* Attached photos (personal fork, 2026-10-24): the composer's + button,
 	 * paste and drop. They ride the next plain send (a steer is text-only,
 	 * so photos wait while a turn runs). */
-	const [photos, setPhotos] = useState<ChatPhoto[]>([]);
-	const [photoError, setPhotoError] = useState<string | null>(null);
-	const addPhotos = useCallback((files: File[]) => {
-		setPhotoError(null);
-		filesToChatPhotos(files)
-			.then((added) => setPhotos((ps) => [...ps, ...added].slice(0, MAX_CHAT_IMAGES)))
-			.catch((e: unknown) => setPhotoError(e instanceof Error ? e.message : String(e)));
-	}, []);
+	const { photos, add: addPhotos, remove: removePhoto, clear: clearPhotos, error: photoError } = useChatPhotos(MAX_CHAT_IMAGES);
 	/* The composer's value MIRROR ("nothing gets lost" round, owner
 	 * 2026-10-01): a dictation flush lands via setState, which a closure
 	 * waiting through `await finish()` cannot observe in time. Kept
@@ -1156,7 +1154,7 @@ export function Chat({
 		draftRef.current = t; // the refusal flow's preserve-and-replay seam
 		applyText("");
 		const images = photos.map(({ data, mimeType }) => ({ data, mimeType }));
-		setPhotos([]);
+		clearPhotos();
 		void send(images.length ? { type: "text", text: t, images } : { type: "text", text: t });
 	};
 
@@ -1673,7 +1671,7 @@ export function Chat({
 							placeholder={nextReady ? "Ask anything, or press Enter for the next one." : undefined}
 							photos={photos}
 							onAddPhotos={addPhotos}
-							onRemovePhoto={(id) => setPhotos((ps) => ps.filter((p) => p.id !== id))}
+							onRemovePhoto={removePhoto}
 							photoError={photoError}
 						/>
 					}

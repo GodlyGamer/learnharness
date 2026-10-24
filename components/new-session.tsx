@@ -1,5 +1,7 @@
 "use client";
 
+import { MAX_CHAT_IMAGES } from "@/src/core";
+import { stashFirstMessagePhotos, useChatPhotos, type ChatPhoto } from "@/components/photo-utils";
 import { ModulePicker, useStudyModule } from "@/components/module-picker";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -47,9 +49,10 @@ export async function startDraftSession(
 	mode?: "practice",
 	picks?: readonly DraftPick[],
 	studyModule?: string,
+	photos: readonly ChatPhoto[] = [],
 ): Promise<string | null> {
 	const t = text.trim();
-	if (!t) return null;
+	if (!t && photos.length === 0) return null;
 	// THE PICKS RIDE THE CREATE (owner round 10): a practice draft seeded
 	// from the pick bar creates its session WITH the graph context — the
 	// same contract as the home screen's practice send (the marker with
@@ -59,12 +62,14 @@ export async function startDraftSession(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
 			...(mode === "practice"
-				? { title: t, kind: "practice", ...(picks && picks.length > 0 ? { graphContext: { propositions: picks } } : {}) }
-				: { title: t }),
+				? { title: t || "Photo question", kind: "practice", ...(picks && picks.length > 0 ? { graphContext: { propositions: picks } } : {}) }
+				: { title: t || "Photo question" }),
 			...(studyModule ? { module: studyModule } : {}),
 		}),
 	});
 	const { id } = (await res.json()) as { id: string };
+	// The opening message's photos wait for the chat page (photo-utils).
+	stashFirstMessagePhotos(id, photos);
 	// No settings PUT on create (per-session models, owner 2026-09-28):
 	// the SERVER stamps the newborn from the strong slot.
 	return `/chat/${id}?prompt=${encodeURIComponent(t)}`;
@@ -87,6 +92,10 @@ export function DraftShell({
 	onClearPicks,
 	overlay,
 	moduleSlot,
+	photos,
+	onAddPhotos,
+	onRemovePhoto,
+	photoError,
 }: {
 	busy: boolean;
 	text: string;
@@ -115,6 +124,11 @@ export function DraftShell({
 	overlay?: ReactNode;
 	/** The study-module pill (personal fork) — left of the stats bar. */
 	moduleSlot?: ReactNode;
+	/** Photos for the opening message (the composer's + button). */
+	photos?: readonly ChatPhoto[];
+	onAddPhotos?: (files: File[]) => void;
+	onRemovePhoto?: (id: string) => void;
+	photoError?: string | null;
 }) {
 	// Voice dictation (STT wave, 2026-09-17): finals append at the end of the
 	// draft text (via the parent's onChange — the truth lives there); the
@@ -132,7 +146,7 @@ export function DraftShell({
 	// round, owner 2026-10-01): the spoken text is deferred in the run's
 	// buffer — Enter must reach the finish-first send, not be gated out by
 	// an empty textarea. Nothing said → the send no-ops.
-	const canSend = text.trim().length > 0 || dictation.active;
+	const canSend = text.trim().length > 0 || dictation.active || (photos?.length ?? 0) > 0;
 	/* FINISH DICTATION FIRST (owner, 2026-10-01): stop the run, let the
 	 * last finals land through onChange, THEN call the parent's send —
 	 * which reads its REF mirror, so the post-await timing of React's
@@ -204,6 +218,10 @@ export function DraftShell({
 										onSend={handleSend}
 										onStop={() => {}}
 										canSend={canSend}
+										photos={photos}
+										onAddPhotos={onAddPhotos}
+										onRemovePhoto={onRemovePhoto}
+										photoError={photoError}
 										inputRef={composerInputRef}
 										autoFocus
 										onEscape={dictation.active ? dictation.cancel : undefined}
@@ -241,6 +259,7 @@ export function NewSession({ initialConfigured, mode = "teach" }: { initialConfi
 	const router = useRouter();
 	const [text, setText] = useState("");
 	const [studyModule, setStudyModule] = useStudyModule();
+	const draftPhotos = useChatPhotos(MAX_CHAT_IMAGES);
 	/* The draft MIRROR ("nothing gets lost" round, 2026-10-01): the shell's
 	 * finish-first send calls THIS send after the dictation flush — which
 	 * landed via setState and may not have re-rendered yet. The send reads
@@ -295,7 +314,7 @@ export function NewSession({ initialConfigured, mode = "teach" }: { initialConfi
 
 	const send = useCallback(() => {
 		const draft = textRef.current.trim();
-		if (!draft || busy) return;
+		if ((!draft && draftPhotos.photos.length === 0) || busy) return;
 		if (!configured) {
 			setSetupOpen(true);
 			return;
@@ -316,13 +335,14 @@ export function NewSession({ initialConfigured, mode = "teach" }: { initialConfi
 			mode === "practice" ? "practice" : undefined,
 			mode === "practice" ? picksRef.current : undefined,
 			studyModule ?? undefined,
+			draftPhotos.photos,
 		)
 			.then((target) => {
 				if (target) router.push(target);
 				else setBusy(false);
 			})
 			.catch(() => setBusy(false));
-	}, [busy, router, configured, zeroKeys, strongKeyless, studyModule]);
+	}, [busy, router, configured, zeroKeys, strongKeyless, studyModule, draftPhotos.photos]);
 
 	return (
 		<>
@@ -336,6 +356,10 @@ export function NewSession({ initialConfigured, mode = "teach" }: { initialConfi
 				onOpenPicker={openPicker}
 				onClearPicks={() => applyPicks([])}
 				moduleSlot={<ModulePicker value={studyModule} onChange={setStudyModule} />}
+				photos={draftPhotos.photos}
+				onAddPhotos={draftPhotos.add}
+				onRemovePhoto={draftPhotos.remove}
+				photoError={draftPhotos.error}
 				overlay={
 					// THE PICKER (owner round 10b): hosted INSIDE the content
 					// column — absolute inset-0 resolves to the column's relative

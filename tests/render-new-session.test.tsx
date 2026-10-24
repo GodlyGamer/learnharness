@@ -202,3 +202,23 @@ describe("the practice draft (?mode=practice, 2026-10-04)", () => {
 		assert.deepEqual(body, { title: "orbital mechanics" });
 	});
 });
+
+describe("startDraftSession — photos on the opening message (the + button)", () => {
+	it("a photo-only send creates the session and hands the photos to the chat page", async () => {
+		const { takeFirstMessagePhotos } = await import("../components/photo-utils.ts");
+		const { f, calls } = fakeFetch("c_photo");
+		const photo = { id: "p1", data: "AAAA", mimeType: "image/jpeg" as const, previewUrl: "data:image/jpeg;base64,AAAA" };
+		const target = await startDraftSession("  ", f, undefined, undefined, undefined, [photo]);
+		assert.equal(target, "/chat/c_photo?prompt=");
+		assert.deepEqual(calls[0]!.body, { title: "Photo question" });
+		assert.deepEqual(takeFirstMessagePhotos("c_photo"), [photo]);
+		assert.deepEqual(takeFirstMessagePhotos("c_photo"), [], "taken once");
+	});
+
+	it("the draft composer always offers the + button", () => {
+		const html = renderToStaticMarkup(
+			<DraftShell busy={false} text="" onChange={() => {}} onSend={() => {}} onAddPhotos={() => {}} />,
+		);
+		assert.match(html, /data-testid="composer-plus"/);
+	});
+});
