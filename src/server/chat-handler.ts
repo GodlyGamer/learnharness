@@ -52,6 +52,8 @@ import {
 	type TurnInput,
 } from "../core/input-events.ts";
 import { steerDelivered } from "../core/contracts.ts";
+import { appendStudyLog, moduleExists, readTaxonomy, type StudyLogEntry } from "./study.ts";
+import { studyLogPrompt, studyLogTool } from "../agent/tools/study-log.ts";
 import type {CallUsage, SteerMessage} from "../core/contracts.ts";
 
 /**
@@ -129,6 +131,21 @@ setTurnRunner(async (chatId, input) => {
  *  the chain (role override → slot → NOTHING) may end empty, and undefined
  *  flows through to the per-need refusal gates (runner/extraction), read
  *  FRESH so a settings PUT between dispatch and spawn lands. */
+/** Module-tagged sessions (personal fork, 2026-10-24): the study_log tool
+ *  and its instructions, writing to study/modules/<CODE>/sessions/. A
+ *  module whose folder is gone simply stops logging. */
+function studyLogOptions(record: { module?: string }, chatId: string): Pick<AgentBuildOptions, "extraTools" | "promptAppendix"> {
+	const code = record.module;
+	if (!code || !moduleExists(code)) return {};
+	const ctx = {
+		module: code,
+		chatId,
+		taxonomy: readTaxonomy(code),
+		append: (entry: StudyLogEntry) => void appendStudyLog(code, chatId, entry),
+	};
+	return { extraTools: [studyLogTool(ctx)], promptAppendix: studyLogPrompt(ctx) };
+}
+
 function resolveEngine(role: ModelRole): PiEngine | undefined {
 	const spec = resolveRoleSpec(role, stores.settingsStore.readSettings());
 	return spec ? piEngineForSpec(spec) : undefined;
@@ -351,6 +368,7 @@ export async function handleChatInput(
 		// point as the tool delta — the agent layer composes the system
 		// prompt fresh per turn, swapping in any enabled override segments.
 		promptSwitches: effective.agent.prompts,
+		...studyLogOptions(record, chatId),
 	};
 	// PRACTICE BRANCH (owner design, 2026-10-04): a kind:"practice"
 	// session builds the practitioner from turn 1 — no prober→teacher

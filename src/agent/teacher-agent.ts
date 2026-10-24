@@ -123,6 +123,11 @@ export interface AgentBuildOptions {
 	 *  <chatId>.jsonl via providerEventObserver — the GLM-truncation /
 	 *  DeepSeek-id incident layer. Absent or env-off → no observer. */
 	chatId?: string;
+	/** Module-tagged sessions (personal fork, 2026-10-24): the study_log
+	 *  tool joins every agent's registry and its instructions append to
+	 *  the system prompt (src/agent/tools/study-log.ts). */
+	extraTools?: AgentTool<any>[];
+	promptAppendix?: string;
 }
 
 /**
@@ -164,16 +169,18 @@ function makeQuestionStopper() {
 	};
 }
 
-function baseAgentOptions(kind: AgentKind, opts: AgentBuildOptions, tools: AgentTool<any, any>[]) {
+function baseAgentOptions(kind: AgentKind, opts: AgentBuildOptions, baseTools: AgentTool<any, any>[]) {
+	let tools = baseTools;
 	// Practice never reaches the role fallback (the handler ALWAYS injects
 	// the session's conversation engine — practice rides the same
 	// conversation-spec resolution as teaching); the cast keeps AgentKind
 	// ("practice" is not a ModelRole) honest about that.
 	const engine = opts.engine ?? piEngineFor(kind as "prober" | "teacher");
 	const stopper = makeQuestionStopper();
-	const systemPrompt = opts.promptSwitches
-		? composeInstructions(kind, opts.promptSwitches)
-		: composedInstructions[kind]!;
+	const systemPrompt =
+		(opts.promptSwitches ? composeInstructions(kind, opts.promptSwitches) : composedInstructions[kind]!) +
+		(opts.promptAppendix ?? "");
+	if (opts.extraTools?.length) tools = [...tools, ...opts.extraTools];
 	// Debug recorder (owner, 2026-10-04): raw provider events when
 	// LH_PROVIDER_EVENTS=1 and the caller handed a chatId; undefined is
 	// the normal no-observer path (tests, env-off).

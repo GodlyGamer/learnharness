@@ -1,5 +1,6 @@
 "use client";
 
+import { ModulePicker, useStudyModule } from "@/components/module-picker";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CornerDownLeftIcon, DumbbellIcon } from "lucide-react";
@@ -93,6 +94,7 @@ export function Home({
 	 *  the composer opens the picker; the picks seed the opening prompt).
 	 *  Not enforcing any input format — the picks are a convenience. */
 	const [mode, setMode] = useState<"teach" | "practice">("teach");
+	const [studyModule, setStudyModule] = useStudyModule();
 	const [practiceProps, setPracticeProps] = useState<{ id: string; name: string; statement: string }[]>([]);
 	const [chainSelectOpen, setChainSelectOpen] = useState(false);
 	// The chain table is CONTROLLED off this id set (the lifted pick).
@@ -143,6 +145,7 @@ export function Home({
 				body: JSON.stringify({
 					title: t,
 					...(mode === "practice" ? { kind: "practice" } : {}),
+					...(studyModule ? { module: studyModule } : {}),
 					...(practiceProps.length > 0 ? { graphContext: { propositions: practiceProps } } : {}),
 				}),
 			});
@@ -294,6 +297,7 @@ export function Home({
 						dictationSlot={<DictationBar dictation={dictation} />}
 						turns={[] as TurnUsage[]}
 						leadingSlot={
+							<div className="flex items-center gap-1.5">
 							<div className="flex items-center gap-0.5 rounded-md border border-border/60 bg-background p-0.5" data-testid="home-mode-switch">
 								{(["teach", "practice"] as const).map((m) => (
 									<button
@@ -312,6 +316,8 @@ export function Home({
 										{m === "teach" ? "Teach" : "Practice"}
 									</button>
 								))}
+							</div>
+							<ModulePicker value={studyModule} onChange={setStudyModule} />
 							</div>
 						}
 					/>

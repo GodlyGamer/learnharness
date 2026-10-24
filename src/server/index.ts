@@ -43,3 +43,9 @@ export * from "./compaction.ts";
 export { runPiTurn, piTurnResponse, type PiTurnHandle, type PiTurnSpec } from "./pi/ui-stream.ts";
 export * from "./observability.ts";
 export * from "./model-catalog.ts";
+
+// The practice-paper pipeline (personal fork, 2026-10-24): the study tree,
+// its headless skill runs, and the paper-to-graph import.
+export * from "./study.ts";
+export * from "./study-jobs.ts";
+export * from "./study-graph.ts";

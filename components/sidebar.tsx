@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { MenuShell } from "@/components/menu-shell";
 import { DeleteSessionDialog } from "@/components/delete-session-dialog";
 import type { ChatDeleteMode } from "@/src/core";
-import { DumbbellIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import { DumbbellIcon, FileTextIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
 import { ActivitySection } from "@/components/activity-dock";
 import { CoverageMenuBlock } from "@/components/extraction-coverage";
 import { LhMark } from "@/components/lh-mark";
@@ -654,9 +654,9 @@ function SessionsSidebar() {
 						<Link
 							href="/"
 							aria-label="Home"
-							className="lh-no-drag flex size-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50"
+							className="lh-no-drag flex size-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50"
 						>
-							<LhMark className="size-6" />
+							<LhMark className="size-8" />
 						</Link>
 					</Hint>
 					<Hint label="Close sidebar" action="toggle-sidebar">
@@ -696,6 +696,20 @@ function SessionsSidebar() {
 						<DumbbellIcon className="size-3" />
 						Practice
 						<span className="sr-only">create a new practice session</span>
+					</button>
+					{/* Practice papers (personal fork): the paper pipeline's
+					    section, nested under Practice — it is practice, by paper. */}
+					<button
+						type="button"
+						data-testid="practice-papers"
+						onClick={() => router.push("/papers")}
+						aria-current={pathname === "/papers" ? "page" : undefined}
+						className={`ml-4 flex w-[calc(100%-1rem)] items-center gap-1.5 rounded-md px-2 py-1.5 text-xs uppercase tracking-wider transition-colors hover:bg-accent hover:text-foreground ${
+							pathname === "/papers" ? "bg-accent text-foreground" : "text-muted-foreground"
+						}`}
+					>
+						<FileTextIcon className="size-3" />
+						Practice papers
 					</button>
 				</div>
 
@@ -787,6 +801,21 @@ function SessionsSidebar() {
 				</div>
 
 				<div ref={listRef} className="flex-1 overflow-y-auto p-2">
+					{kindFilter === "practice" && (
+						<button
+							type="button"
+							onClick={() => router.push("/papers")}
+							className={`mb-1 flex w-full items-center gap-2 rounded-lg border border-dashed px-2 py-2 text-left transition-colors hover:bg-accent ${
+								pathname === "/papers" ? "bg-accent" : ""
+							}`}
+						>
+							<FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
+							<span className="min-w-0">
+								<span className="block truncate font-ui text-base font-medium">Practice papers</span>
+								<span className="block text-xs text-muted-foreground">Generate, hand in, mark</span>
+							</span>
+						</button>
+					)}
 					{shown === null ? (
 						<div className="px-2 py-4 text-xs text-muted-foreground">Loading…</div>
 					) : shown.length === 0 ? (

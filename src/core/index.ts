@@ -75,3 +75,7 @@ export * from "./coverage.ts";
 // ONE session→markdown formatter — the extractor's view and the user-facing
 // export share it. Pure, browser-safe.
 export * from "./session-markdown.ts";
+
+// study.ts (personal fork, 2026-10-24): the practice-paper pipeline's file
+// contracts (session logs, marking) shared with .claude/skills.
+export * from "./study.ts";

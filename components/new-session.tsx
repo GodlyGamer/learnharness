@@ -1,5 +1,6 @@
 "use client";
 
+import { ModulePicker, useStudyModule } from "@/components/module-picker";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Conversation, ConversationContent, ConversationEmptyState } from "@/components/ai-elements/conversation";
@@ -45,6 +46,7 @@ export async function startDraftSession(
 	fetchLike: typeof fetch,
 	mode?: "practice",
 	picks?: readonly DraftPick[],
+	studyModule?: string,
 ): Promise<string | null> {
 	const t = text.trim();
 	if (!t) return null;
@@ -55,11 +57,12 @@ export async function startDraftSession(
 	const res = await fetchLike("/api/chats", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(
-			mode === "practice"
+		body: JSON.stringify({
+			...(mode === "practice"
 				? { title: t, kind: "practice", ...(picks && picks.length > 0 ? { graphContext: { propositions: picks } } : {}) }
-				: { title: t },
-		),
+				: { title: t }),
+			...(studyModule ? { module: studyModule } : {}),
+		}),
 	});
 	const { id } = (await res.json()) as { id: string };
 	// No settings PUT on create (per-session models, owner 2026-09-28):
@@ -83,6 +86,7 @@ export function DraftShell({
 	onOpenPicker,
 	onClearPicks,
 	overlay,
+	moduleSlot,
 }: {
 	busy: boolean;
 	text: string;
@@ -109,6 +113,8 @@ export function DraftShell({
 	 *  the graph view (the overlay fills its column, never the sidebar).
 	 *  Passed as a node so the pick state stays in NewSession. */
 	overlay?: ReactNode;
+	/** The study-module pill (personal fork) — left of the stats bar. */
+	moduleSlot?: ReactNode;
 }) {
 	// Voice dictation (STT wave, 2026-09-17): finals append at the end of the
 	// draft text (via the parent's onChange — the truth lives there); the
@@ -211,6 +217,7 @@ export function DraftShell({
 								<StatsBar
 									dictationSlot={<DictationBar dictation={dictation} />}
 									turns={[]}
+									leadingSlot={moduleSlot}
 								/>
 							</div>
 						</div>
@@ -233,6 +240,7 @@ export function DraftShell({
 export function NewSession({ initialConfigured, mode = "teach" }: { initialConfigured: boolean; mode?: "teach" | "practice" }) {
 	const router = useRouter();
 	const [text, setText] = useState("");
+	const [studyModule, setStudyModule] = useStudyModule();
 	/* The draft MIRROR ("nothing gets lost" round, 2026-10-01): the shell's
 	 * finish-first send calls THIS send after the dictation flush — which
 	 * landed via setState and may not have re-rendered yet. The send reads
@@ -302,13 +310,19 @@ export function NewSession({ initialConfigured, mode = "teach" }: { initialConfi
 			return;
 		}
 		setBusy(true);
-		void startDraftSession(draft, fetch, mode === "practice" ? "practice" : undefined, mode === "practice" ? picksRef.current : undefined)
+		void startDraftSession(
+			draft,
+			fetch,
+			mode === "practice" ? "practice" : undefined,
+			mode === "practice" ? picksRef.current : undefined,
+			studyModule ?? undefined,
+		)
 			.then((target) => {
 				if (target) router.push(target);
 				else setBusy(false);
 			})
 			.catch(() => setBusy(false));
-	}, [busy, router, configured, zeroKeys, strongKeyless]);
+	}, [busy, router, configured, zeroKeys, strongKeyless, studyModule]);
 
 	return (
 		<>
@@ -321,6 +335,7 @@ export function NewSession({ initialConfigured, mode = "teach" }: { initialConfi
 				picks={picks}
 				onOpenPicker={openPicker}
 				onClearPicks={() => applyPicks([])}
+				moduleSlot={<ModulePicker value={studyModule} onChange={setStudyModule} />}
 				overlay={
 					// THE PICKER (owner round 10b): hosted INSIDE the content
 					// column — absolute inset-0 resolves to the column's relative

@@ -123,7 +123,7 @@ const NON_SUBSCRIPTION_AUTH = new Set(["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKE
  *  route the request away from the subscription login (a key, a token, a
  *  proxy) or make the child think it is nested inside another Claude Code
  *  session. */
-function childEnv(): Record<string, string | undefined> {
+export function childEnv(): Record<string, string | undefined> {
 	const env: Record<string, string | undefined> = {};
 	for (const [k, v] of Object.entries(process.env)) {
 		if (NON_SUBSCRIPTION_AUTH.has(k) || k === "CLAUDECODE" || k.startsWith("CLAUDE_CODE_")) continue;

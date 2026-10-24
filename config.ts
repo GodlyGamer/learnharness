@@ -18,6 +18,17 @@ const DATA_ROOT = process.env.LH_DATA_DIR
 	? path.resolve(process.env.LH_DATA_DIR)
 	: path.join(ROOT, "data");
 
+/**
+ * The practice-paper pipeline's study tree (personal fork, 2026-10-24):
+ * study/modules/<CODE>/{materials,sessions,papers,attempts,marking}. It is
+ * a CONTRACT shared with .claude/skills/make-papers and mark-attempts
+ * (layout in CLAUDE.md), so it stays at the repo root where those skills
+ * look. LH_STUDY_DIR relocates it.
+ */
+export const STUDY_ROOT = process.env.LH_STUDY_DIR
+	? path.resolve(process.env.LH_STUDY_DIR)
+	: path.join(ROOT, "study");
+
 export const PATHS = {
 	root: ROOT,
 	/** Teacher system prompt — the agent's instructions (src/agent/). */

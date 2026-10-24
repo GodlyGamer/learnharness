@@ -16,3 +16,11 @@ auth.json
 
 # dev-fresh launcher scratch (fresh-user sim): disposable per launch
 .fresh-data/
+
+# The study tree (practice-paper pipeline): your module materials, session
+# logs, generated papers, photos and markings stay on this machine. The
+# fork is public, and lecture notes / past papers are not ours to publish.
+study/modules/
+
+# Local dev-server launcher for the Claude desktop app preview.
+.claude/launch.json
