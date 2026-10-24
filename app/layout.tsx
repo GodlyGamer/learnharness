@@ -20,7 +20,7 @@ const prose = Source_Sans_3({ subsets: ["latin"], variable: "--font-sans3" });
 const THEME_BOOT = `try{var t=localStorage.getItem("lh-theme");if(t==="light"||t==="nocturne"){var r=document.documentElement;r.dataset.theme=t;if(t==="light")r.classList.remove("dark")}}catch(e){}`;
 
 export const metadata: Metadata = {
-	title: "LearnHarness",
+	title: "MentalTuition",
 	description: "A teacher agent with a memory — sessions, quizzes, and a knowledge graph of what you know.",
 };
 

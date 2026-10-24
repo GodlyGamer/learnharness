@@ -36,15 +36,46 @@ const path = require("node:path");
 // renderer owns the number; this is the IPC widen target).
 const SIDEBAR_AUTOCLOSE = 928;
 
-const PRODUCT_NAME = "LearnHarness";
+// The personal fork's name (2026-10-24): MentalTuition. The appId stays
+// com.learnharness.LearnHarness so 0.3.6+ installs over 0.3.5 and keeps
+// updating from the same feed.
+const PRODUCT_NAME = "MentalTuition";
+const OLD_PRODUCT_NAME = "LearnHarness";
 
 // APP NAME → userData (owner, 2026-10-10): the Application Support dir is
-// exactly "LearnHarness" in dev AND packaged. Packaged Electron would
+// exactly the product name in dev AND packaged. Packaged Electron would
 // otherwise derive it from package.json "name" (now lowercase
 // "learnharness"), and productName metadata alone doesn't reach app.name.
 // Must run before the LH_DEV_URL suffix below — dev becomes
-// "LearnHarness-dev".
+// "MentalTuition-dev".
 app.setName(PRODUCT_NAME);
+
+/** The rename moved userData from %APPDATA%\LearnHarness to
+ *  %APPDATA%\MentalTuition. Once (the marker file), before anything reads
+ *  it, copy the old folder over — the keys (auth.json), this machine's
+ *  workspace choice and setup record, the Gemini download — leaving
+ *  Chromium's caches behind and never overwriting a file already there.
+ *  The old folder stays as it was. Runs from main(), after the
+ *  single-instance lock. */
+function migrateUserData() {
+	const next = app.getPath("userData");
+	const old = path.join(app.getPath("appData"), OLD_PRODUCT_NAME);
+	const marker = path.join(next, ".migrated-from-learnharness");
+	if (!fs.existsSync(old) || fs.existsSync(marker)) return;
+	const caches = new Set(["Cache", "Code Cache", "GPUCache", "DawnGraphiteCache", "DawnWebGPUCache", "Shared Dictionary", "blob_storage"]);
+	try {
+		fs.cpSync(old, next, {
+			recursive: true,
+			force: false,
+			filter: (src) => !caches.has(path.relative(old, src).split(path.sep)[0]),
+		});
+		fs.writeFileSync(marker, `${new Date().toISOString()}
+`);
+		log(`copied this machine's settings from ${old}`);
+	} catch (err) {
+		log(`couldn't copy settings from ${old}: ${err?.message ?? err}`);
+	}
+}
 const AUTH_FILE = () => path.join(app.getPath("userData"), "auth.json");
 /** Per-machine state that must not sync (downloaded programs, the setup
  *  record): config.ts LOCAL_ROOT. */
@@ -95,9 +126,9 @@ async function pickWorkspace({ first }) {
 			const { response } = await dialog.showMessageBox({
 				type: "info",
 				title: PRODUCT_NAME,
-				message: "Choose where LearnHarness keeps your work",
+				message: "Choose where MentalTuition keeps your work",
 				detail:
-					"Pick or create a folder in Google Drive (for example My Drive\\LearnHarness). Your chats, knowledge graph, settings and study modules go there, so your other computer can use them too.\n\nYou can change it later in Settings → This computer.",
+					"Pick or create a folder in Google Drive (for example My Drive\\MentalTuition). Your chats, knowledge graph, settings and study modules go there, so your other computer can use them too.\n\nYou can change it later in Settings → This computer.",
 				buttons: ["Choose folder…", "Quit"],
 				defaultId: 0,
 				cancelId: 1,
@@ -105,7 +136,7 @@ async function pickWorkspace({ first }) {
 			if (response === 1) return null;
 		}
 		const result = await dialog.showOpenDialog({
-			title: "LearnHarness folder",
+			title: "MentalTuition folder",
 			defaultPath: workspace ?? driveFolder(),
 			buttonLabel: "Use this folder",
 			properties: ["openDirectory", "createDirectory", "promptToCreate"],
@@ -150,7 +181,7 @@ async function claimWorkspace(ws) {
 			const { response } = await dialog.showMessageBox({
 				type: "warning",
 				title: PRODUCT_NAME,
-				message: `LearnHarness looks open on ${other.host}`,
+				message: `MentalTuition looks open on ${other.host}`,
 				detail:
 					"Using the same folder on two computers at once can make Google Drive keep conflicting copies of your chats and graph. Close it there first, or open it here anyway.",
 				buttons: ["Open anyway", "Quit"],
@@ -584,7 +615,7 @@ function checkForUpdates({ manual = false } = {}) {
 			// update-downloaded. Manual checks additionally answer directly.
 			if (!manual) return;
 			const version = result?.updateInfo?.version;
-			if (!version) dialog.showMessageBox({ type: "info", message: "You're up to date.", detail: `LearnHarness ${app.getVersion()} is the latest version.` });
+			if (!version) dialog.showMessageBox({ type: "info", message: "You're up to date.", detail: `MentalTuition ${app.getVersion()} is the latest version.` });
 		})
 		.catch((err) => {
 			log(`update check failed: ${err?.message ?? err}`);
@@ -704,6 +735,7 @@ function installMenu() {
 }
 
 async function main() {
+	if (!process.env.LH_DEV_URL) migrateUserData();
 	app.on("window-all-closed", () => {
 		// macOS convention: the app stays resident, reactivated from the Dock.
 		if (process.platform !== "darwin") app.quit();
