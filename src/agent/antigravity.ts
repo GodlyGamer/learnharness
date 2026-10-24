@@ -100,8 +100,16 @@ export function antigravityProvider(googleModels: readonly Model<Api>[]): Provid
 function serverCommand(): { cmd: string; args: string[]; cwd: string } {
 	const override = process.env.LH_ANTIGRAVITY_ACP;
 	if (override) return override.endsWith(".mjs") ? { cmd: process.execPath, args: [override], cwd: path.dirname(override) } : { cmd: override, args: [], cwd: path.dirname(override) };
-	const exe = path.join(ROOT, ".tools", "antigravity-acp", ANTIGRAVITY_VERSION, "agy_acp_server.exe");
-	return { cmd: exe, args: [], cwd: path.dirname(exe) };
+	// npm run setup:gemini records what it installed; without that record,
+	// fall back to the version this engine was built against.
+	const tools = path.join(ROOT, ".tools", "antigravity-acp");
+	let installed: { version?: string; cmd?: string; args?: string[] } = {};
+	try {
+		installed = JSON.parse(fs.readFileSync(path.join(tools, "installed.json"), "utf-8"));
+	} catch {}
+	const version = installed.version ?? ANTIGRAVITY_VERSION;
+	const exe = path.join(tools, version, installed.cmd ?? (process.platform === "win32" ? "agy_acp_server.exe" : "agy_acp_server.par"));
+	return { cmd: exe, args: installed.args ?? [], cwd: path.dirname(exe) };
 }
 
 export function antigravityInstalled(): boolean {
@@ -378,7 +386,7 @@ async function run(
 	};
 
 	if (!antigravityInstalled()) {
-		fail("error", `The Antigravity server isn't installed (.tools/antigravity-acp/${ANTIGRAVITY_VERSION}).`);
+		fail("error", "The Antigravity server isn't installed. Run `npm run setup:gemini`, then `npm run login:gemini`.");
 		return;
 	}
 	if (!process.env.LH_ANTIGRAVITY_ACP && !antigravitySignedIn()) {

@@ -10,15 +10,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const VERSION = "1.4.3";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const exe = path.join(root, ".tools", "antigravity-acp", VERSION, "agy_acp_server.exe");
-if (!fs.existsSync(exe)) {
-	console.error(`Antigravity ACP server ${VERSION} is not installed at ${exe}.`);
+const tools = path.join(root, ".tools", "antigravity-acp");
+let installed = null;
+try {
+	installed = JSON.parse(fs.readFileSync(path.join(tools, "installed.json"), "utf-8"));
+} catch {}
+const exe = installed && path.join(tools, installed.version, installed.cmd);
+if (!exe || !fs.existsSync(exe)) {
+	console.error("The Antigravity ACP server is not installed. Run `npm run setup:gemini` first.");
 	process.exit(1);
 }
 
-const child = spawn(exe, [], { cwd: path.dirname(exe), stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
+const child = spawn(exe, installed.args ?? [], { cwd: path.dirname(exe), stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
 // The server re-launches itself on Windows: end the whole process tree.
 const stop = () => {
 	if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
@@ -33,7 +37,8 @@ child.stderr.on("data", (d) => {
 		opened = true;
 		console.log("\nSign in with Google in your browser. If it didn't open, open this link:\n");
 		console.log(url, "\n");
-		exec(`start "" "${url.replace(/"/g, "")}"`);
+		const open = { win32: 'start ""', darwin: "open" }[process.platform] ?? "xdg-open";
+		exec(`${open} "${url.replace(/"/g, "")}"`);
 	}
 });
 console.log("Starting Google's Antigravity server (about 15 seconds)…");

@@ -21,6 +21,7 @@
 		"typecheck": "tsc --noEmit",
 		"desktop:dev": "concurrently -k \"next dev\" \"node scripts/electron-dev.mjs\"",
 		"login": "node scripts/claude-login.mjs",
+		"setup:gemini": "node scripts/setup-antigravity.mjs",
 		"login:gemini": "node scripts/antigravity-login.mjs",
 		"dev:fresh": "bash scripts/dev-fresh.sh",
 		"desktop:dist": "rm -rf dist .next/standalone && next build && node scripts/build-server.mjs && node scripts/smoke-server.mjs && DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer} APPLE_KEYCHAIN_PROFILE=LH_NOTARY APPLE_TEAM_ID=JS6XN22HY6 electron-builder --mac --arm64"
