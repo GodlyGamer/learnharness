@@ -211,7 +211,30 @@ export interface ModelsSettings {
  *  models section carries a model in every slot. Thinking levels stay
  *  optional (absent = the resolved tier's budget). */
 export function slotsConfigured(models: ModelsSettings | undefined): boolean {
-	return Boolean(models?.strong?.model && models?.cheap?.model && models?.vision?.model);
+	const slots = withDefaultSlots(models);
+	return Boolean(slots.strong?.model && slots.cheap?.model && slots.vision?.model);
+}
+
+/** Personal fork (2026-10-24): the factory floor BYOK never had. Every
+ *  slot the user has not pinned runs on the Claude subscription engine
+ *  (src/agent/claude-code.ts; "claude-code" is its provider id): Opus
+ *  teaches, Sonnet runs the background jobs. Pinning a slot in settings
+ *  still overrides it. */
+export const SUBSCRIPTION_SLOTS: Readonly<Record<ModelSlotName, ModelSlot>> = {
+	strong: { model: { provider: "claude-code", id: "claude-opus-5-5" } },
+	cheap: { model: { provider: "claude-code", id: "claude-sonnet-5-5" } },
+	vision: { model: { provider: "claude-code", id: "claude-sonnet-5-5" } },
+};
+
+/** The models section with every model-less slot filled from
+ *  SUBSCRIPTION_SLOTS (a pinned level on a model-less slot carries over). */
+export function withDefaultSlots(models: ModelsSettings | undefined): ModelsSettings {
+	const out: ModelsSettings = {};
+	for (const name of MODEL_SLOTS) {
+		const slot = models?.[name];
+		out[name] = slot?.model ? slot : { ...SUBSCRIPTION_SLOTS[name], ...(slot?.thinkingLevel ? { thinkingLevel: slot.thinkingLevel } : {}) };
+	}
+	return out;
 }
 
 /** Which slot a role draws from (model slots wave, 2026-09-20). Includes the

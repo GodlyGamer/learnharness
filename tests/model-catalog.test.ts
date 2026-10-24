@@ -16,7 +16,7 @@ import {
 import type { EffectiveSlot } from "../src/core/settings-resolution.ts";
 import type { SettingsValidation } from "../src/server/model-catalog.ts";
 import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import { DEFAULT_THINKING_ORDER } from "../src/core/settings.ts";
+import { DEFAULT_THINKING_ORDER, ROLE_SLOT, SUBSCRIPTION_SLOTS } from "../src/core/settings.ts";
 import { piEngineForSpec, piModels } from "../src/agent/models.ts";
 import { BACKGROUND_MODEL_ROLES } from "../src/core/settings.ts";
 import { resolveSettings } from "../src/core/settings-resolution.ts";
@@ -99,7 +99,7 @@ describe("the model catalog projection", () => {
 				assert.ok(slots[name], name);
 				assert.deepEqual(slots[name]!.model, stored.model);
 			} else {
-				assert.equal(slots[name], null, name);
+				assert.deepEqual(slots[name]!.model, SUBSCRIPTION_SLOTS[name].model, name);
 			}
 		}
 	});
@@ -127,11 +127,11 @@ describe("the model catalog projection", () => {
 });
 
 describe("the background roles' resolved pins (rolePins)", () => {
-	it("no record → every role is NULL (BYOK: no phantom defaults)", () => {
+	it("no record → every role pins its tier's subscription model", () => {
 		const pins = rolePinsFor(resolveSettings(null).agent.models);
 		assert.deepEqual(Object.keys(pins), [...BACKGROUND_MODEL_ROLES]);
 		for (const role of BACKGROUND_MODEL_ROLES) {
-			assert.equal(pins[role], null, role);
+			assert.deepEqual(pins[role], { model: SUBSCRIPTION_SLOTS[ROLE_SLOT[role]].model }, role);
 		}
 	});
 
@@ -144,7 +144,7 @@ describe("the background roles' resolved pins (rolePins)", () => {
 		const pins = rolePinsFor(resolveSettings(record).agent.models);
 		assert.deepEqual(pins.researcher, { model: { provider: "openrouter", id: "z-ai/glm-5.3-flash" }, thinkingLevel: "high" });
 		assert.deepEqual(pins.auditor, { model: { provider: "openrouter", id: "qwen/qwen3.8-flash" } }); // level unset
-		assert.equal(pins.visualMaker, null, "vision tier untouched");
+		assert.deepEqual(pins.visualMaker, { model: SUBSCRIPTION_SLOTS.vision.model }, "vision tier on the floor");
 	});
 
 	it("catalogRolePins matches the same resolution the engine wiring uses", () => {
@@ -166,7 +166,7 @@ describe("the model slots surface (model slots wave, 2026-09-20)", () => {
 				assert.ok(slots[name], name);
 				assert.deepEqual(slots[name]!.model, stored.model);
 			} else {
-				assert.equal(slots[name], null, name);
+				assert.deepEqual(slots[name]!.model, SUBSCRIPTION_SLOTS[name].model, name);
 			}
 		}
 	});

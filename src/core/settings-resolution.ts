@@ -41,6 +41,7 @@ import {
 	type ModelSlotName,
 	type RoleModelOverride,
 	type UserSettings,
+	withDefaultSlots,
 } from "./settings.ts";
 
 /** A configured model slot: the tier's concrete model, with its optional
@@ -123,7 +124,7 @@ export function resolveConversationSpec(
 export function resolveRoleSpec(role: ModelRole, record: UserSettings | null): EffectiveModelSpec | undefined {
 	const bg = BACKGROUND_MODEL_ROLES as readonly string[];
 	const override = bg.includes(role) ? record?.agent?.models?.[role as BackgroundModelRole] : undefined;
-	return resolveModelSpec(role, override, record?.models);
+	return resolveModelSpec(role, override, withDefaultSlots(record?.models));
 }
 
 /** Resolve one slot to its configured view, or null when the tier holds
@@ -162,7 +163,8 @@ export function resolveModelSpec(
  *  down, owner 2026-09-22). */
 export function resolveSettings(record: UserSettings | null): EffectiveSettings {
 	const agent = record?.agent ?? {};
-	const modelsSection = record?.models ?? {};
+	// Personal fork: unset slots fall back to the Claude subscription pins.
+	const modelsSection = withDefaultSlots(record?.models);
 	const appearance = record?.appearance ?? {};
 	const md = appearance.mdRendering ?? {};
 	const graph = record?.graph ?? {};

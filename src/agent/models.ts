@@ -11,6 +11,7 @@ import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { type ModelRole } from "../../config.ts";
 import { DEFAULT_THINKING_ORDER } from "../core/settings.ts";
+import { claudeCodeProvider } from "./claude-code.ts";
 import packageMetadata from "../../package.json" with { type: "json" };
 
 /** App identity is immutable and shared by Models and every native Agent.
@@ -56,7 +57,11 @@ let collection: ReturnType<typeof createModels> | undefined;
 export function piModels() {
 	if (!collection) {
 		collection = createModels({ identity: APP_IDENTITY });
-		for (const provider of builtinProviders()) collection.setProvider(provider);
+		const providers = builtinProviders();
+		for (const provider of providers) collection.setProvider(provider);
+		// The keyless Claude subscription engine, cloned from Anthropic's catalog.
+		const anthropic = providers.find((p) => p.id === "anthropic");
+		collection.setProvider(claudeCodeProvider(anthropic?.getModels() ?? []));
 	}
 	return collection;
 }

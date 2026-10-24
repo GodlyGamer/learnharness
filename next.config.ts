@@ -71,6 +71,8 @@ const nextConfig: NextConfig = {
 			"node_modules/@resvg/resvg-js-*/**/*",
 			"node_modules/@earendil-works/pi-ai/dist/providers/data/**/*",
 			"node_modules/@earendil-works/pi-agent-core/dist/**/*.json",
+			// The Agent SDK's per-platform Claude Code binary (optional dep).
+			"node_modules/@anthropic-ai/claude-agent-sdk*/**/*",
 		],
 	},
 	// Framework-free core lives in src/ (plain TS, imported by routes and CLI alike).
@@ -82,6 +84,10 @@ const nextConfig: NextConfig = {
 		"pdfjs-dist", // sources v0: bundling breaks its node fake-worker path
 		"@napi-rs/canvas", // native binding — bundling breaks the .node require
 		"@resvg/resvg-js", // native binding — same
+		// The Claude subscription engine spawns the SDK's bundled Claude Code
+		// binary by a path resolved from its own package dir — bundling breaks it.
+		"@anthropic-ai/claude-agent-sdk",
+		"@modelcontextprotocol/sdk",
 	],
 };
 

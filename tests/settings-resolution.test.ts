@@ -19,7 +19,14 @@ import {
 	resolveSettings,
 	resolveSlot,
 } from "../src/core/settings-resolution.ts";
-import { BACKGROUND_MODEL_ROLES, type UserSettings } from "../src/core/settings.ts";
+import { BACKGROUND_MODEL_ROLES, ROLE_SLOT, SUBSCRIPTION_SLOTS, type UserSettings } from "../src/core/settings.ts";
+
+/** The subscription factory pin of one tier, in resolved form. */
+const sub = (tier: "strong" | "cheap" | "vision", thinkingLevel?: "low" | "medium" | "high" | "max") => ({
+	provider: "claude-code",
+	id: SUBSCRIPTION_SLOTS[tier].model!.id,
+	thinkingLevel,
+});
 
 describe("resolveSettings", () => {
 	it("null record (first boot): non-model knobs land on factory defaults; every model view is EMPTY", () => {
@@ -28,14 +35,14 @@ describe("resolveSettings", () => {
 		assert.deepEqual(eff.agent.tools, {});
 		assert.deepEqual(eff.agent.prompts, {});
 		assert.deepEqual(eff.agent.search, {});
-		// BYOK (owner, 2026-09-22): no factory floor — every role undefined,
-		// every slot null. No phantom ids anywhere.
+		// Personal fork: the factory floor is the Claude subscription — every
+		// role and slot resolves to its tier's subscription pin.
 		for (const role of BACKGROUND_MODEL_ROLES) {
-			assert.equal(eff.agent.models[role], undefined, role);
+			assert.deepEqual(eff.agent.models[role], sub(ROLE_SLOT[role]), role);
 		}
-		assert.equal(eff.models.strong, null);
-		assert.equal(eff.models.cheap, null);
-		assert.equal(eff.models.vision, null);
+		assert.deepEqual(eff.models.strong, sub("strong"));
+		assert.deepEqual(eff.models.cheap, sub("cheap"));
+		assert.deepEqual(eff.models.vision, sub("vision"));
 		assert.equal(eff.appearance.mode, "dark");
 		assert.equal(eff.appearance.background, null);
 		assert.equal(eff.appearance.fontFamily, null);
@@ -109,7 +116,7 @@ describe("resolveSettings", () => {
 			thinkingLevel: "medium",
 		});
 		const bare = resolveSettings({ version: 1, agent: { models: { extractor: { thinkingLevel: "medium" } } } });
-		assert.equal(bare.agent.models.extractor, undefined); // no model anywhere → chain empty
+		assert.deepEqual(bare.agent.models.extractor, sub("cheap", "medium")); // no pinned model → the subscription floor
 	});
 
 	it("resolveModelSpec is field-independent per override aspect", () => {
@@ -137,8 +144,8 @@ describe("the slot tier (BYOK, owner 2026-09-22)", () => {
 				role,
 			);
 		}
-		// other tiers untouched (empty)
-		assert.equal(eff.agent.models.visualMaker, undefined);
+		// other tiers untouched (subscription floor)
+		assert.deepEqual(eff.agent.models.visualMaker, sub("vision"));
 	});
 
 	it("role override still beats the slot; each field independent", () => {
@@ -159,10 +166,10 @@ describe("the slot tier (BYOK, owner 2026-09-22)", () => {
 		const eff = resolveSettings({ version: 1, models: { vision: { model: { provider: "zai", id: "v-model" }, thinkingLevel: "max" } } });
 		assert.deepEqual(eff.agent.models.visualMaker, { provider: "zai", id: "v-model", thinkingLevel: "max" });
 		assert.deepEqual(eff.models.vision, { provider: "zai", id: "v-model", thinkingLevel: "max" });
-		// a stored level WITHOUT a model is inert (kept on disk, no phantom default)
-		const inert = resolveSettings({ version: 1, models: { strong: { thinkingLevel: "medium" } } });
-		assert.equal(inert.models.strong, null);
-		assert.equal(inert.agent.models.researcher, undefined); // strong's emptiness must not leak into other tiers
+		// a stored level WITHOUT a model rides the subscription floor's model
+		const levelOnly = resolveSettings({ version: 1, models: { strong: { thinkingLevel: "medium" } } });
+		assert.deepEqual(levelOnly.models.strong, sub("strong", "medium"));
+		assert.deepEqual(levelOnly.agent.models.researcher, sub("cheap")); // strong's level must not leak into other tiers
 	});
 
 	it("resolveSlot: configured iff the model is present", () => {
@@ -203,7 +210,7 @@ describe("the slot tier (BYOK, owner 2026-09-22)", () => {
 			models: { vision: { model: { provider: "zai", id: "v" }, thinkingLevel: "low" } },
 		};
 		assert.deepEqual(resolveRoleSpec("pdfReader", visionRecord), { provider: "zai", id: "v", thinkingLevel: "low" });
-		assert.equal(resolveRoleSpec("teacher", null), undefined);
+		assert.deepEqual(resolveRoleSpec("teacher", null), sub("strong"));
 	});
 });
 

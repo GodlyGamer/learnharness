@@ -293,15 +293,16 @@ describe("keyStatusLine — the minimal at-a-glance state", () => {
 
 describe("first-run gate — slotsConfigured + setupStage (model-slots wave)", () => {
 	it("slotsConfigured: all three slot models required — thinking levels are optional", () => {
-		assert.equal(slotsConfigured(undefined), false, "no record = unconfigured");
-		assert.equal(slotsConfigured({}), false, "empty models section");
+		// Personal fork: the subscription floor configures every unpinned slot.
+		assert.equal(slotsConfigured(undefined), true, "no record = subscription floor");
+		assert.equal(slotsConfigured({}), true, "empty models section");
 		assert.equal(
 			slotsConfigured({
 				strong: { model: { provider: "zai", id: "glm-5.3-flash" } },
 				cheap: { model: { provider: "zai", id: "glm-4.7-flash" } },
 			}),
-			false,
-			"vision missing",
+			true,
+			"vision falls back to the floor",
 		);
 		assert.equal(
 			slotsConfigured({
@@ -312,11 +313,11 @@ describe("first-run gate — slotsConfigured + setupStage (model-slots wave)", (
 			true,
 			"all three picked",
 		);
-		// a thinking-only pin does NOT configure the slot
+		// a thinking-only pin rides the floor's model
 		assert.equal(
 			slotsConfigured({ strong: { thinkingLevel: "low" }, cheap: { thinkingLevel: "low" }, vision: { thinkingLevel: "low" } }),
-			false,
-			"thinking pins are not models",
+			true,
+			"thinking pins ride the floor",
 		);
 	});
 
