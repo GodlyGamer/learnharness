@@ -24,3 +24,6 @@ study/modules/
 
 # Local dev-server launcher for the Claude desktop app preview.
 .claude/launch.json
+
+# Downloaded engine binaries (Antigravity ACP server, verified by SHA-256).
+.tools/

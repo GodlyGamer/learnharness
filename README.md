@@ -64,6 +64,7 @@ All three platforms support in-app updates.
 This fork runs without API keys:
 
 - **Models:** every agent runs on your Claude subscription through the Claude Agent SDK (the local Claude Code login). Opus 5.5 teaches; Sonnet 5.5 runs research, visuals and extraction. You can change either in Settings → Models. Use it for personal, local learning only: Anthropic's terms don't allow building a product on a subscription login.
+- **Gemini (optional):** Gemini runs on your Google sign-in through Google's own Antigravity ACP server (Google-signed, SHA-256 checked, kept in the git-ignored `.tools/` folder). Sign in once with `npm.cmd run login:gemini`; "Gemini … (Google login)" models then appear in the model picker. Your Google plan decides which models you get.
 - **Dictation:** Whisper runs on your computer. The ~80MB model downloads the first time you dictate; after that it works offline.
 - **Look:** the Mentaljineer liquid-glass design, with Dark, Light and Nocturne themes in Settings → Appearance.
 
@@ -72,6 +73,7 @@ First run:
 ```bash
 npm install
 npm run login        # sign in to Claude once (opens the browser)
+npm run login:gemini # optional: sign in to Gemini with Google
 npm run desktop:dev  # the desktop app; or `npm run dev` for http://localhost:3000
 ```
 

@@ -73,7 +73,6 @@ const nextConfig: NextConfig = {
 			"node_modules/@earendil-works/pi-agent-core/dist/**/*.json",
 			// The Agent SDK's per-platform Claude Code binary (optional dep).
 			"node_modules/@anthropic-ai/claude-agent-sdk*/**/*",
-			"node_modules/@google/gemini-cli/**/*",
 		],
 	},
 	// Framework-free core lives in src/ (plain TS, imported by routes and CLI alike).
@@ -89,8 +88,6 @@ const nextConfig: NextConfig = {
 		// binary by a path resolved from its own package dir — bundling breaks it.
 		"@anthropic-ai/claude-agent-sdk",
 		"@modelcontextprotocol/sdk",
-		// The Gemini engine runs the CLI's bundle as a child process by path.
-		"@google/gemini-cli",
 	],
 };
 

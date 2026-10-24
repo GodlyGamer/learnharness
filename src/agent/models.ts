@@ -12,7 +12,7 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { type ModelRole } from "../../config.ts";
 import { DEFAULT_THINKING_ORDER } from "../core/settings.ts";
 import { claudeCodeProvider } from "./claude-code.ts";
-import { geminiCliProvider } from "./gemini-cli.ts";
+import { antigravityProvider } from "./antigravity.ts";
 import packageMetadata from "../../package.json" with { type: "json" };
 
 /** App identity is immutable and shared by Models and every native Agent.
@@ -63,9 +63,9 @@ export function piModels() {
 		// The keyless Claude subscription engine, cloned from Anthropic's catalog.
 		const anthropic = providers.find((p) => p.id === "anthropic");
 		collection.setProvider(claudeCodeProvider(anthropic?.getModels() ?? []));
-		// The keyless Gemini engine (Google login via the Gemini CLI).
+		// The keyless Gemini engine (Google sign-in via Antigravity's ACP server).
 		const google = providers.find((p) => p.id === "google");
-		collection.setProvider(geminiCliProvider(google?.getModels() ?? []));
+		collection.setProvider(antigravityProvider(google?.getModels() ?? []));
 	}
 	return collection;
 }
