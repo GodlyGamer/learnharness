@@ -1751,8 +1751,10 @@ export function contextWindow(
 
 /** One call's full context footprint: input + output + both cache
  *  directions (pi's totalTokens semantics — provider `input` excludes
- *  the cached portion). */
+ *  the cached portion). An engine-reported contextTokens wins: its token
+ *  fields sum several internal calls (Gemini via Antigravity). */
 function stepFootprint(step: CallUsage): number {
+	if (step.contextTokens) return step.contextTokens;
 	return (
 		(step.inputTokens ?? 0) +
 		(step.outputTokens ?? 0) +

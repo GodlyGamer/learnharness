@@ -131,6 +131,11 @@ export interface CallUsage {
 	cacheWriteTokens: number | undefined;
 	/** The reasoning portion of the output tokens. */
 	reasoningTokens: number | undefined;
+	/** The engine-reported context footprint of the step's latest model
+	 * call (core/compaction.ts ReportedUsage) — set only by engines whose
+	 * step sums several calls (Gemini via Antigravity). The context gauge
+	 * reads it before the field sum. */
+	contextTokens?: number;
 }
 
 /** One billing turn: one full invocation of the teacher (a client turn or a

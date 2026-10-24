@@ -49,6 +49,9 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
 		case "session/prompt": {
 			const update = (u) => send({ method: "session/update", params: { sessionId: "s1", update: u } });
 			const text = p.prompt.map((b) => (b.type === "text" ? b.text : `[${b.type}]`)).join(" | ");
+			// Context of each internal call ("used"); the final usage SUMS the calls.
+			update({ sessionUpdate: "usage_update", used: 0, size: 1048576 });
+			update({ sessionUpdate: "usage_update", used: 700, size: 1048576 });
 			update({ sessionUpdate: "agent_thought_chunk", content: { type: "text", text: "Checking prior knowledge." } });
 			update({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Quick check first." } });
 			// A built-in tool asks permission: the engine must deny it.
@@ -74,6 +77,7 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
 			const done = new Promise((r) => (cancelled = r));
 			update({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "SHOULD NOT APPEAR" } });
 			await done;
+			update({ sessionUpdate: "usage_update", used: 820, size: 1048576 });
 			return send({ id: msg.id, result: { stopReason: "cancelled", usage: { inputTokens: 1000, outputTokens: 40, thoughtTokens: 60, cachedReadTokens: 400, cachedWriteTokens: 0 } } });
 		}
 		default:

@@ -1,4 +1,3 @@
-import type { Usage } from "@earendil-works/pi-ai";
 import {
 	createPracticeAgent,
 	createProberAgent,
@@ -55,6 +54,7 @@ import { steerDelivered } from "../core/contracts.ts";
 import { appendStudyLog, listMaterials, moduleExists, readTaxonomy, type StudyLogEntry } from "./study.ts";
 import { studyLogPrompt, studyLogTool } from "../agent/tools/study-log.ts";
 import type {CallUsage, SteerMessage} from "../core/contracts.ts";
+import type { ReportedUsage } from "../core/compaction.ts";
 
 /**
  * One chat turn over the server-owned native record. Framework-free (plain
@@ -321,7 +321,7 @@ export async function handleChatInput(
 	// append-only turns log at onFinish — idempotent per turn id.
 	const turnUsageId = crypto.randomUUID();
 	const steps: CallUsage[] = [];
-	const collectUsage = (usage: Usage) => {
+	const collectUsage = (usage: ReportedUsage) => {
 		steps.push({
 			inputTokens: usage.input,
 			outputTokens: usage.output,
@@ -329,6 +329,8 @@ export async function handleChatInput(
 			cacheWriteTokens: usage.cacheWrite,
 			// Optional in pi's Usage — persisted as 0, never dropped.
 			reasoningTokens: usage.reasoning ?? 0,
+			// Only engines that report it (Gemini via Antigravity).
+			...(usage.contextTokens !== undefined && { contextTokens: usage.contextTokens }),
 		});
 	};
 

@@ -38,7 +38,7 @@ import { COMPACTED_HISTORY_HEADER } from "./contracts/chat.ts";
 import type { LhMessage, LhMarkerMessage } from "./native-messages.ts";
 import { newMessageId, userMessageText } from "./native-messages.ts";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage, ToolResultMessage, Usage } from "@earendil-works/pi-ai";
 
 // ─── constants (the tunables, owner-approved) ────────────────────────────────
 
@@ -61,10 +61,21 @@ const SUMMARY_TOOL_RESULT_TRUNCATE = 2_000;
 
 // ─── token estimation (pi's law: usage-anchored, chars/4 only for the tail) ─
 
+/** pi's Usage plus the engine-reported context footprint (personal fork,
+ * 2026-10-24). An engine whose one step runs SEVERAL internal model calls
+ * (Gemini via Antigravity: tool call, retries, the cancelled next
+ * response) reports their SUM in the token fields — honest spend, but not
+ * the context any single call carried. Such an engine sets contextTokens
+ * to its latest call's footprint (Antigravity's usage_update "used"); the
+ * compaction trigger and the context gauge read it first. Engines that
+ * never set it (Claude) keep the field-sum meaning. */
+export type ReportedUsage = Usage & { contextTokens?: number };
+
 /** Context tokens from a provider-reported usage block — the most honest
  * measure of "what the last request actually carried." Mirrors pi's
- * calculateContextTokens. */
+ * calculateContextTokens; an engine-reported contextTokens wins. */
 export function calculateContextTokens(usage: {
+	contextTokens?: number;
 	totalTokens?: number;
 	input?: number;
 	output?: number;
@@ -72,6 +83,7 @@ export function calculateContextTokens(usage: {
 	cacheWrite?: number;
 }): number {
 	return (
+		usage.contextTokens ||
 		usage.totalTokens ||
 		(usage.input ?? 0) + (usage.output ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0)
 	);

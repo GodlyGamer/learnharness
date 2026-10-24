@@ -89,6 +89,15 @@ describe("estimateContextTokens (usage-anchored, pi's law)", () => {
 		assert.equal(est.tokens, 31_000); // the 100k chars before the anchor are NOT re-estimated
 	});
 
+	it("anchors on an engine-reported contextTokens, not the summed usage (a Gemini step never trips the trigger)", () => {
+		const gemini = usageAssistant("a1", 184_900) as unknown as { usage: Record<string, number> };
+		gemini.usage.contextTokens = 22_600;
+		const msgs = [newUserMessage("Teach me limits."), gemini as unknown as LhMessage] as LhMessage[];
+		const est = estimateContextTokens(msgs);
+		assert.equal(est.lastUsageIndex, 1);
+		assert.equal(est.tokens, 22_600);
+	});
+
 	it("skips aborted and all-zero-usage assistants when hunting the anchor", () => {
 		const msgs = [
 			usageAssistant("a1", 30_000),
@@ -141,6 +150,9 @@ describe("estimateMessageTokens (wire text only — the 3x-inflation fix)", () =
 		assert.equal(calculateContextTokens({ totalTokens: 42, input: 1, output: 2 }), 42);
 		assert.equal(calculateContextTokens({ input: 10, output: 5, cacheRead: 3, cacheWrite: 2 }), 20);
 		assert.equal(calculateContextTokens({}), 0);
+		// An engine-reported context footprint (Gemini via Antigravity: the
+		// fields sum several internal calls) wins over both.
+		assert.equal(calculateContextTokens({ contextTokens: 22_600, totalTokens: 184_900, input: 180_000, output: 4_900 }), 22_600);
 	});
 });
 

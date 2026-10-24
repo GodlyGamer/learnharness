@@ -128,6 +128,28 @@ test("contextWindow NUMERATOR: cache tokens count (owner audit, 2026-09-23)", ()
 	assert.equal(plain.usedTokens, 10_000);
 });
 
+test("contextWindow NUMERATOR: an engine-reported contextTokens wins over the summed fields (Gemini via Antigravity)", () => {
+	// One Antigravity step ran ~9 internal calls: the fields SUM them (the
+	// real spend) while contextTokens is the latest call's footprint.
+	const limits = new Map([["antigravity:gemini-3.8-flash", 1_048_576]]);
+	const cw = contextWindow(
+		{
+			turns: [
+				{
+					id: "t1",
+					messageId: "m1",
+					at: "x",
+					model: "antigravity:gemini-3.8-flash",
+					steps: [{ ...call({ inputTokens: 180_000, outputTokens: 4_900 }), contextTokens: 22_600 }],
+				},
+			],
+		},
+		limits,
+	);
+	assert.ok(cw);
+	assert.equal(cw.usedTokens, 22_600);
+});
+
 test("contextWindow DENOMINATOR: the live index is the ONLY source — no fallback (owner amendment, 2026-09-23)", () => {
 	const turns = [
 		{ id: "t1", messageId: "m1", at: "x", model: "openrouter:z-ai/glm-5.3-flash", steps: [call({ inputTokens: 10_000, outputTokens: 1_000 })] },

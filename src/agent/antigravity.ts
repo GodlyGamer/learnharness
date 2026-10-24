@@ -21,7 +21,11 @@
  *     response, the prompt is cancelled and the calls go back to pi;
  *   - the app's system prompt is APPENDED to Antigravity's own
  *     (_meta.antigravity.systemPrompt.append — the only form it offers);
- *   - the transcript is replayed as one tagged prompt (transcriptBlocks).
+ *   - the transcript is replayed as one tagged prompt (transcriptBlocks);
+ *   - one step can run several internal model calls, and the prompt's
+ *     usage SUMS them (a single probing step read 184.9k): the token fields
+ *     keep that sum (the real spend), while contextTokens carries the latest
+ *     usage_update "used" — the context one call actually carried.
  */
 
 import {
@@ -50,6 +54,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { LOCAL_ROOT } from "../../config.ts";
 import { TRANSCRIPT_NOTE, transcriptBlocks } from "./claude-code.ts";
+import type { ReportedUsage } from "../core/compaction.ts";
 
 export const ANTIGRAVITY_PROVIDER_ID = "antigravity";
 export const ANTIGRAVITY_API = "antigravity-acp";
@@ -408,6 +413,8 @@ async function run(
 	let toolPhase = false;
 	let finishing = false;
 	let sessionId: string | null = null;
+	/** The latest usage_update "used": the context of the newest internal call. */
+	let contextUsed = 0;
 	let server: AcpServer | null = null;
 	let toolServer: Awaited<ReturnType<typeof startToolServer>> | null = null;
 	const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "lh-agy-"));
@@ -434,8 +441,12 @@ async function run(
 		const live = server;
 		live.register(sid, {
 			onUpdate: (update) => {
-				if (finishing) return;
 				const kind = update.sessionUpdate;
+				if (kind === "usage_update") {
+					if (typeof update.used === "number" && update.used > 0) contextUsed = update.used;
+					return;
+				}
+				if (finishing) return;
 				if (kind === "tool_call") {
 					toolPhase = true;
 					return;
@@ -472,6 +483,7 @@ async function run(
 			output.usage.cacheWrite = u.cachedWriteTokens ?? 0;
 			output.usage.totalTokens = output.usage.input + output.usage.output + output.usage.cacheRead + output.usage.cacheWrite;
 		}
+		if (contextUsed > 0) (output.usage as ReportedUsage).contextTokens = contextUsed;
 		if (options?.signal?.aborted) {
 			fail("aborted");
 			return;

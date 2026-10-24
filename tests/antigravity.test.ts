@@ -61,6 +61,7 @@ describe("the Gemini (Google sign-in, Antigravity) engine", () => {
 		assert.deepEqual(message.usage.input, 600, "input excludes cached reads");
 		assert.equal(message.usage.cacheRead, 400);
 		assert.equal(message.usage.output, 100, "output includes thinking");
+		assert.equal((message.usage as { contextTokens?: number }).contextTokens, 820, "context = the latest usage_update, not the summed calls");
 		assert.ok(events.includes("toolcall_end") && events.at(-1) === "done");
 	});
 

@@ -28,7 +28,6 @@
  */
 
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Usage } from "@earendil-works/pi-ai";
 import {
 	activeCompactionOf,
 	buildCompactionPrompt,
@@ -43,6 +42,7 @@ import {
 	type CompactionDetails,
 	type LhMessage,
 	type LhMarkerMessage,
+	type ReportedUsage,
 } from "../core/index.ts";
 import { emit } from "../core/events.ts";
 import type { ChatStore } from "../core/ports.ts";
@@ -57,11 +57,11 @@ const SUMMARIZER_SYSTEM_PROMPT =
 /** The one-shot summary call: zero tools, one turn, text out. The engine
  *  is the chat's own conversation engine (owner ruling: the session's
  *  model writes its own summary). Injectable for tests. */
-export type Summarizer = (prompt: string, engine: PiEngine) => Promise<{ summary: string; usage: Usage }>;
+export type Summarizer = (prompt: string, engine: PiEngine) => Promise<{ summary: string; usage: ReportedUsage }>;
 
 /** The production summarizer over the sub-agent seam. */
-async function subagentSummarizer(prompt: string, engine: PiEngine): Promise<{ summary: string; usage: Usage }> {
-	let usage: Usage = {
+async function subagentSummarizer(prompt: string, engine: PiEngine): Promise<{ summary: string; usage: ReportedUsage }> {
+	let usage: ReportedUsage = {
 		input: 0,
 		output: 0,
 		cacheRead: 0,
@@ -239,6 +239,7 @@ async function compact(deps: CompactionDeps, chatId: string): Promise<void> {
 					cacheReadTokens: usage.cacheRead,
 					cacheWriteTokens: usage.cacheWrite,
 					reasoningTokens: usage.reasoning ?? 0,
+					...(usage.contextTokens !== undefined && { contextTokens: usage.contextTokens }),
 				},
 			],
 		});
