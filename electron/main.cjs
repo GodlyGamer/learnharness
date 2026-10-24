@@ -248,6 +248,12 @@ function killServer() {
 	}, 3000);
 }
 
+/** Windows/Linux window-controls overlay for a theme: transparent over the
+ *  app's own ground, with symbols in the theme's ink. */
+function titleBarOverlayFor(mode) {
+	return { color: "#00000000", symbolColor: mode === "light" ? "#0e0e0f" : "#f2f2f3" };
+}
+
 /** Security posture (all defaults asserted explicitly; the guards are the
  *  checklist's own recommendations for localhost-app shells):
  *  - deny-by-default permission handler allowing only our loopback origin
@@ -277,7 +283,9 @@ function createWindow(url) {
 				// height. Do not force the zoom-invariant native overlay to match
 				// the renderer's 60 CSS px bar: zooming out would cover its border.
 				// The renderer reserves the actual width via env(titlebar-area-*).
-				titleBarOverlay: { color: "#141414", symbolColor: "#e5e5e5" },
+				// Transparent so the theme's lit ground shows behind the
+				// controls; the symbol color follows the theme ("lh:theme").
+				titleBarOverlay: titleBarOverlayFor("dark"),
 				// Keep the custom bar alone; Alt reveals the native menu.
 				autoHideMenuBar: true,
 			}),
@@ -589,6 +597,12 @@ async function main() {
 	// The renderer's first paint can race did-finish-load — it asks for
 	// the current factor itself (mirrors "lh:zoom" pushes).
 	ipcMain.handle("lh:zoom:get", (event) => BrowserWindow.fromWebContents(event.sender)?.webContents.getZoomFactor() ?? 1);
+	// The renderer's theme (Mentaljineer skin): the native window controls'
+	// symbols must stay readable on the Light ground. No-op on macOS (no overlay).
+	ipcMain.on("lh:theme", (event, mode) => {
+		if (process.platform === "darwin") return;
+		BrowserWindow.fromWebContents(event.sender)?.setTitleBarOverlay(titleBarOverlayFor(mode));
+	});
 	ipcMain.on("lh:expand-window", (event) => {
 		const win = BrowserWindow.fromWebContents(event.sender);
 		if (!win) return;

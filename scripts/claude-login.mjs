@@ -16,11 +16,13 @@ try {
 	process.exit(1);
 }
 
-// Same clean environment the engine gives its child process: no API key
-// (that would bypass the subscription) and no nested-session variables.
+// Same clean environment the engine gives its child process: no API key,
+// token or proxy (those would bypass the subscription) and no
+// nested-session variables.
+const skip = new Set(["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "CLAUDECODE"]);
 const env = {};
 for (const [k, v] of Object.entries(process.env)) {
-	if (k === "ANTHROPIC_API_KEY" || k === "CLAUDECODE" || k.startsWith("CLAUDE_CODE_")) continue;
+	if (skip.has(k) || k.startsWith("CLAUDE_CODE_")) continue;
 	env[k] = v;
 }
 

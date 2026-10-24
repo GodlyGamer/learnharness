@@ -116,13 +116,17 @@ function effortFor(level: SimpleStreamOptions["reasoning"]): EffortLevel | undef
 	}
 }
 
+/** Variables that would route requests away from the subscription login. */
+const NON_SUBSCRIPTION_AUTH = new Set(["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL"]);
+
 /** The child process environment: the parent's, minus anything that would
- *  route the request away from the subscription login (an API key) or make
- *  the child think it is nested inside another Claude Code session. */
+ *  route the request away from the subscription login (a key, a token, a
+ *  proxy) or make the child think it is nested inside another Claude Code
+ *  session. */
 function childEnv(): Record<string, string | undefined> {
 	const env: Record<string, string | undefined> = {};
 	for (const [k, v] of Object.entries(process.env)) {
-		if (k === "ANTHROPIC_API_KEY" || k === "CLAUDECODE" || k.startsWith("CLAUDE_CODE_")) continue;
+		if (NON_SUBSCRIPTION_AUTH.has(k) || k === "CLAUDECODE" || k.startsWith("CLAUDE_CODE_")) continue;
 		env[k] = v;
 	}
 	env.CLAUDE_AGENT_SDK_CLIENT_APP = "learnharness";

@@ -59,6 +59,8 @@ declare global {
 			/** Read-only host OS; determines the native-control gutter. */
 			platform?: string;
 			expandWindow: () => void;
+			/** Tells the shell the theme so native window controls stay legible. */
+			setTheme?: (mode: string) => void;
 			/** The zoom truth (owner round 7): subscribes to "lh:zoom" pushes; returns unsubscribe. */
 			onZoom?: (cb: (factor: number) => void) => () => void;
 			getZoom?: () => Promise<number>;

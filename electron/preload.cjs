@@ -7,6 +7,9 @@
  *   window.lh.platform — read-only OS identity for native window-control
  *   gutters (darwin: left traffic lights; win32/linux: right overlay).
  *
+ *   window.lh.setTheme(mode) — the Mentaljineer theme, so the native
+ *   window controls (Windows/Linux) keep legible symbols on its ground.
+ *
  *   window.lh.expandWindow() — widen the window to the sidebar auto-close
  *   threshold (928px) when the sidebar is opened below it. The main
  *   process clamps: no-op if the window is already wide enough.
@@ -30,6 +33,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("lh", {
 	platform: process.platform,
 	expandWindow: () => ipcRenderer.send("lh:expand-window"),
+	setTheme: (mode) => ipcRenderer.send("lh:theme", mode),
 	onZoom: (cb) => {
 		const listener = (_event, factor) => cb(factor);
 		ipcRenderer.on("lh:zoom", listener);

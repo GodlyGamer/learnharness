@@ -164,6 +164,7 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
 		const root = document.documentElement;
 		root.dataset.theme = mode;
 		root.classList.toggle("dark", mode !== "light");
+		window.lh?.setTheme?.(mode);
 		try {
 			localStorage.setItem("lh-theme", mode);
 		} catch {/* storage blocked: the boot script falls back to dark */}
