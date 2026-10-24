@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowRightIcon, CornerDownLeftIcon, ImageIcon, PlusIcon, SquareIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Hint } from "@/components/ui/hint";
@@ -243,12 +244,25 @@ export function PhotoStrip({
  *  `size` "sm" fits the question dock's footer row. */
 export function PlusMenu({ onAddPhotos, size = "md" }: { onAddPhotos: (files: File[]) => void; size?: "md" | "sm" }) {
 	const [open, setOpen] = useState(false);
+	/* The menu renders in a portal at the page root, fixed above the
+	 * button: the composer shells clip their overflow (the dock's height
+	 * morph needs overflow-hidden), so an in-place popover was cut off and
+	 * the + seemed to open nothing. */
+	const [anchor, setAnchor] = useState<{ left: number; bottom: number } | null>(null);
 	const ref = useRef<HTMLDivElement>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
+	const buttonRef = useRef<HTMLButtonElement>(null);
 	const input = useRef<HTMLInputElement>(null);
 	useEffect(() => {
 		if (!open) return;
+		const place = () => {
+			const r = buttonRef.current?.getBoundingClientRect();
+			if (r) setAnchor({ left: r.left, bottom: window.innerHeight - r.top + 8 });
+		};
+		place();
 		const close = (e: PointerEvent) => {
-			if (!ref.current?.contains(e.target as Node)) setOpen(false);
+			const t = e.target as Node;
+			if (!ref.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false);
 		};
 		const esc = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
@@ -258,9 +272,13 @@ export function PlusMenu({ onAddPhotos, size = "md" }: { onAddPhotos: (files: Fi
 		};
 		document.addEventListener("pointerdown", close);
 		document.addEventListener("keydown", esc, true);
+		window.addEventListener("resize", place);
+		window.addEventListener("scroll", place, true);
 		return () => {
 			document.removeEventListener("pointerdown", close);
 			document.removeEventListener("keydown", esc, true);
+			window.removeEventListener("resize", place);
+			window.removeEventListener("scroll", place, true);
 		};
 	}, [open]);
 	return (
@@ -280,6 +298,7 @@ export function PlusMenu({ onAddPhotos, size = "md" }: { onAddPhotos: (files: Fi
 			/>
 			<Hint label="Add photos" side="top">
 				<button
+					ref={buttonRef}
 					type="button"
 					aria-label="Add photos and more"
 					aria-expanded={open}
@@ -294,10 +313,15 @@ export function PlusMenu({ onAddPhotos, size = "md" }: { onAddPhotos: (files: Fi
 					<PlusIcon className={cn("transition-transform duration-200", size === "sm" ? "size-4" : "size-5", open && "rotate-45")} />
 				</button>
 			</Hint>
-			{open && (
+			{open &&
+				anchor &&
+				createPortal(
 				<div
+					ref={menuRef}
 					role="menu"
-					className="absolute bottom-full left-0 z-40 mb-2 flex w-56 flex-col gap-0.5 rounded-xl border bg-card p-1.5 text-sm shadow-xl"
+					data-testid="composer-plus-menu"
+					style={{ left: anchor.left, bottom: anchor.bottom }}
+					className="fixed z-[60] flex w-56 flex-col gap-0.5 rounded-xl border bg-card p-1.5 text-sm shadow-xl"
 				>
 					<button
 						type="button"
@@ -315,7 +339,8 @@ export function PlusMenu({ onAddPhotos, size = "md" }: { onAddPhotos: (files: Fi
 							<span className="text-[11px] text-muted-foreground">Or paste / drop them in</span>
 						</span>
 					</button>
-				</div>
+				</div>,
+				document.body,
 			)}
 		</div>
 	);
