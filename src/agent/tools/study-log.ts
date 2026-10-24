@@ -103,8 +103,36 @@ export function studyLogTool(ctx: StudyLogContext): AgentTool<typeof studyLogInp
 	};
 }
 
+/** The module's materials as the composition root lists them. */
+export interface StudyMaterials {
+	dir: string;
+	files: Record<string, string[]>;
+}
+
+function materialsSection(code: string, m: StudyMaterials | undefined): string {
+	if (!m) return "";
+	const folders = Object.entries(m.files);
+	const total = folders.reduce((n, [, f]) => n + f.length, 0);
+	if (total === 0) {
+		return `
+
+# Module materials (${code})
+The module's materials folder (${m.dir}) is still empty; teach from the learner's own words and say once that adding lecture notes and past papers there would let you match the course.`;
+	}
+	const listing = folders
+		.filter(([, f]) => f.length > 0)
+		.map(([folder, f]) => `- ${folder}/ (${f.length}): ${f.slice(0, 40).join(", ")}${f.length > 40 ? ", …" : ""}`)
+		.join("\n");
+	return `
+
+# Module materials (${code})
+This module's own materials are in ${m.dir} — use them before looking anywhere else on the learner's machine:
+${listing}
+Before probing, read the spec and lecture notes for the topic so your questions match the course's scope, notation and sign conventions, and look at past papers for how the topic is examined. Paths are absolute: pass them to the file and PDF tools exactly as written here (join the folder and file name onto ${m.dir}).`;
+}
+
 /** The system-prompt section a module-tagged session adds. */
-export function studyLogPrompt(ctx: Pick<StudyLogContext, "module" | "taxonomy">): string {
+export function studyLogPrompt(ctx: Pick<StudyLogContext, "module" | "taxonomy"> & { materials?: StudyMaterials }): string {
 	const ids = ctx.taxonomy.length
 		? ctx.taxonomy
 				.slice(0, 200)
@@ -121,5 +149,5 @@ This session belongs to module ${ctx.module}. Its practice papers are generated 
 - kind "self_rating" when the learner rates their own confidence on a sub-skill.
 Use the taxonomy ids below; when none fits, pass null and a descriptive label. Never invent an id.
 Taxonomy:
-${ids}`;
+${ids}${materialsSection(ctx.module, ctx.materials)}`;
 }

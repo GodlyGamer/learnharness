@@ -28,6 +28,7 @@
 import type { QuestionAnswerData } from "./question-core.ts";
 import type { LhMessage } from "./native-messages.ts";
 import {
+	type ChatImage,
 	activeProblemOf,
 	concludedByDismissalPair,
 	danglingQuestionOf,
@@ -42,7 +43,9 @@ import { QUESTION_TOOLS, toolQuestionKind } from "./pending.ts";
 
 /** One client-originated input event (the POST body's `input`). */
 export type ChatInput =
-	| { type: "text"; text: string }
+	/** images: photos attached with the composer's + button (personal
+	 *  fork) — base64 JPEG/PNG/WebP/GIF; the text may then be empty. */
+	| { type: "text"; text: string; images?: ChatImage[] }
 	| { type: "answer"; toolCallId: string; answer: QuestionAnswerData }
 	| { type: "continue" }
 	/** The practice dock's two buttons (owner, 2026-10-04): the learner's
@@ -150,16 +153,39 @@ export function dismissAppends(record: { messages: LhMessage[] }, input: Dismiss
 /** A malformed input event (the honest 400 — the orphan-trap discipline). */
 export class ChatInputError extends Error {}
 
+/** Photos per message, and per photo (base64 chars ≈ 4/3 of the bytes). */
+export const MAX_CHAT_IMAGES = 6;
+export const MAX_CHAT_IMAGE_CHARS = 7_000_000;
+const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
+function parseImages(raw: unknown): ChatImage[] {
+	if (raw === undefined) return [];
+	if (!Array.isArray(raw)) throw new ChatInputError("images must be an array");
+	if (raw.length > MAX_CHAT_IMAGES) throw new ChatInputError(`at most ${MAX_CHAT_IMAGES} photos per message`);
+	return raw.map((img) => {
+		const r = (img ?? {}) as Record<string, unknown>;
+		if (typeof r.mimeType !== "string" || !IMAGE_TYPES.has(r.mimeType)) {
+			throw new ChatInputError("photos must be JPEG, PNG, WebP or GIF");
+		}
+		if (typeof r.data !== "string" || r.data.length === 0 || r.data.length > MAX_CHAT_IMAGE_CHARS || !/^[A-Za-z0-9+/=]+$/.test(r.data)) {
+			throw new ChatInputError("a photo is empty, too large, or not base64");
+		}
+		return { data: r.data, mimeType: r.mimeType };
+	});
+}
+
 /** Parse and validate an input event off a request body. */
 export function parseChatInput(input: unknown): ChatInput {
 	if (typeof input !== "object" || input === null) throw new ChatInputError("input must be an object");
 	const i = input as Record<string, unknown>;
 	switch (i.type) {
-		case "text":
-			if (typeof i.text !== "string" || (i.text as string).trim().length === 0) {
-				throw new ChatInputError("text input requires non-empty text");
+		case "text": {
+			const images = parseImages(i.images);
+			if (typeof i.text !== "string" || (i.text.trim().length === 0 && images.length === 0)) {
+				throw new ChatInputError("text input requires non-empty text or a photo");
 			}
-			return { type: "text", text: i.text };
+			return images.length ? { type: "text", text: i.text, images } : { type: "text", text: i.text };
+		}
 		case "answer":
 			if (typeof i.toolCallId !== "string" || i.toolCallId.length === 0) {
 				throw new ChatInputError("answer input requires toolCallId");
@@ -200,7 +226,7 @@ export function inputAppends(
 ): LhMessage[] {
 	switch (input.type) {
 		case "text":
-			return [...dismissalConclusion(record), newUserMessage(input.text)];
+			return [...dismissalConclusion(record), newUserMessage(input.text, input.images)];
 		case "answer": {
 			const pending = danglingQuestionOf(record.messages);
 			if (!pending || pending.toolCallId !== input.toolCallId) {

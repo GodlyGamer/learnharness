@@ -7,6 +7,7 @@ import { providerEventObserver, type ProviderEventObserver } from "../provider-e
 import type { PdfResult, PdfToolInput } from "../../core/contracts.ts";
 import { getHeadless, type HeadlessApi } from "./headless.ts";
 import { pdfExtract, pdfInfo, pdfProbe, pdfSearch, type PdfSearchHit } from "./pdf-ops.ts";
+import { resolveSourcePath } from "../tools/fs-shared.ts";
 
 /**
  * The pdf-reader sub-agent (sources v0, 2026-09): reads a learner-provided
@@ -166,7 +167,10 @@ export async function runPdfReaderAgent(
 ): Promise<PdfResult> {
 	const headless = opts.headless ?? getHeadless();
 	const maxIterations = opts.maxIterations ?? MAX_ITERATIONS;
-	const pdfPath = input.path;
+	// Same resolution as the fs tools (ls/read/find/grep): a relative path is
+	// the learner's home-relative path, never the app's working directory —
+	// "Downloads/1M1 Notes.pdf" listed by ls must open here too.
+	const pdfPath = resolveSourcePath(input.path);
 
 	// Deterministic upfront failure: unreadable / unparseable
 	// for renders — the brief never starts on a broken source.

@@ -52,7 +52,7 @@ import {
 	type TurnInput,
 } from "../core/input-events.ts";
 import { steerDelivered } from "../core/contracts.ts";
-import { appendStudyLog, moduleExists, readTaxonomy, type StudyLogEntry } from "./study.ts";
+import { appendStudyLog, listMaterials, moduleExists, readTaxonomy, type StudyLogEntry } from "./study.ts";
 import { studyLogPrompt, studyLogTool } from "../agent/tools/study-log.ts";
 import type {CallUsage, SteerMessage} from "../core/contracts.ts";
 
@@ -143,7 +143,7 @@ function studyLogOptions(record: { module?: string }, chatId: string): Pick<Agen
 		taxonomy: readTaxonomy(code),
 		append: (entry: StudyLogEntry) => void appendStudyLog(code, chatId, entry),
 	};
-	return { extraTools: [studyLogTool(ctx)], promptAppendix: studyLogPrompt(ctx) };
+	return { extraTools: [studyLogTool(ctx)], promptAppendix: studyLogPrompt({ ...ctx, materials: listMaterials(code) }) };
 }
 
 function resolveEngine(role: ModelRole): PiEngine | undefined {

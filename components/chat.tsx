@@ -1,5 +1,6 @@
 "use client";
 
+import { filesToChatPhotos, type ChatPhoto } from "@/components/photo-utils";
 import { createContext, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useChatSession } from "@/components/session";
 import { visibleQueuedSteers } from "@/components/session-core";
@@ -39,6 +40,7 @@ import {
 	textPartMessageId,
 	kbdEventForAction as kbdEventForChat,
 	needsContinuation,
+	MAX_CHAT_IMAGES,
 	type ChatInput,
 	type ChatSettings,
 	type LhMessage,
@@ -543,6 +545,17 @@ export function Chat({
 	const phases = useMemo(() => phaseTimeline(messages), [messages]);
 
 	const [text, setText] = useState("");
+	/* Attached photos (personal fork, 2026-10-24): the composer's + button,
+	 * paste and drop. They ride the next plain send (a steer is text-only,
+	 * so photos wait while a turn runs). */
+	const [photos, setPhotos] = useState<ChatPhoto[]>([]);
+	const [photoError, setPhotoError] = useState<string | null>(null);
+	const addPhotos = useCallback((files: File[]) => {
+		setPhotoError(null);
+		filesToChatPhotos(files)
+			.then((added) => setPhotos((ps) => [...ps, ...added].slice(0, MAX_CHAT_IMAGES)))
+			.catch((e: unknown) => setPhotoError(e instanceof Error ? e.message : String(e)));
+	}, []);
 	/* The composer's value MIRROR ("nothing gets lost" round, owner
 	 * 2026-10-01): a dictation flush lands via setState, which a closure
 	 * waiting through `await finish()` cannot observe in time. Kept
@@ -680,7 +693,7 @@ export function Chat({
 	// affordance).
 	const [compacting, setCompacting] = useState(initiallyCompacting);
 	const canSend =
-		(text.trim().length > 0 || dictation.active) && !pending && !activeProblem && !compacting;
+		(text.trim().length > 0 || dictation.active || (photos.length > 0 && !busy)) && !pending && !activeProblem && !compacting;
 
 	/* THE PRACTICE PAUSE (owner round 16): between problems — practice
 	 * kind, nothing active, nothing in flight, and at least one problem
@@ -1139,10 +1152,12 @@ export function Chat({
 	const doSend = () => {
 		if (busy || pending || compacting) return;
 		const t = textRef.current.trim();
-		if (!t) return;
+		if (!t && photos.length === 0) return;
 		draftRef.current = t; // the refusal flow's preserve-and-replay seam
 		applyText("");
-		void send({ type: "text", text: t });
+		const images = photos.map(({ data, mimeType }) => ({ data, mimeType }));
+		setPhotos([]);
+		void send(images.length ? { type: "text", text: t, images } : { type: "text", text: t });
 	};
 
 	/* STEER VS SEND (owner arc 2026-10-03): a send while a turn runs steers
@@ -1157,7 +1172,7 @@ export function Chat({
 	const doSteerOrSend = () => {
 		if (pending || compacting) return;
 		const t = textRef.current.trim();
-		if (!t) return;
+		if (!t && (photos.length === 0 || busy)) return;
 		if (busy) {
 			applyText("");
 			void steer(t);
@@ -1433,6 +1448,16 @@ export function Chat({
 												<div className="lh-prose whitespace-pre-wrap text-foreground">
 													{m.parts.filter((p) => p.type === "text").map((p) => p.text).join("\n")}
 												</div>
+												{m.parts.some((p) => p.type === "file") && (
+													<div className="mb-1 mt-2 flex flex-wrap gap-2" data-testid="user-photos">
+														{m.parts.map((p, pi) =>
+															p.type === "file" && String(p.mediaType).startsWith("image/") ? (
+																// eslint-disable-next-line @next/next/no-img-element -- photos live in the record as data URLs
+																<img key={pi} src={String(p.url)} alt="Attached photo" className="max-h-64 max-w-full rounded-lg border object-contain" />
+															) : null,
+														)}
+													</div>
+												)}
 											</div>
 									) : (
 									<Message from="assistant" className="max-w-full">
@@ -1646,6 +1671,10 @@ export function Chat({
 							nextProblem={nextReady}
 							onNext={sendNext}
 							placeholder={nextReady ? "Ask anything, or press Enter for the next one." : undefined}
+							photos={photos}
+							onAddPhotos={addPhotos}
+							onRemovePhoto={(id) => setPhotos((ps) => ps.filter((p) => p.id !== id))}
+							photoError={photoError}
 						/>
 					}
 					onSubmitAnswer={(output) => {

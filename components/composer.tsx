@@ -1,8 +1,10 @@
 "use client";
 
-import { ArrowRightIcon, CornerDownLeftIcon, SquareIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRightIcon, CornerDownLeftIcon, ImageIcon, PlusIcon, SquareIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Hint } from "@/components/ui/hint";
+import type { ChatPhoto } from "@/components/photo-utils";
 
 /**
  * The chat composer — content row ONLY (the persistent rounded shell lives in
@@ -49,6 +51,10 @@ export function Composer({
 	placeholder = "Ask, answer, or steer the lesson…",
 	nextProblem = false,
 	onNext,
+	photos,
+	onAddPhotos,
+	onRemovePhoto,
+	photoError,
 }: {
 	busy: boolean;
 	value: string;
@@ -74,6 +80,14 @@ export function Composer({
 	/** The signal's dispatcher (send({type:"next"})) — the chip and the
 	 *  empty-Enter share it. */
 	onNext?: () => void;
+	/** Attached photos (personal fork, 2026-10-24) — the + button, paste
+	 *  and drop add them; absent onAddPhotos = no + button (draft views). */
+	photos?: readonly ChatPhoto[];
+	onAddPhotos?: (files: File[]) => void;
+	onRemovePhoto?: (id: string) => void;
+	/** Why the last photo couldn't be attached (e.g. a format the browser
+	 *  can't decode, such as HEIC). */
+	photoError?: string | null;
 }) {
 	const act = () => {
 		const action = enterAction({ busy, canSend, nextProblem });
@@ -81,15 +95,55 @@ export function Composer({
 		else if (action === "send") onSend();
 		else if (action === "next") onNext?.();
 	};
+	const [dragging, setDragging] = useState(false);
+	const imageFiles = (list: FileList | null | undefined) => Array.from(list ?? []).filter((f) => f.type.startsWith("image/"));
 	return (
 		<form
 			data-testid="composer"
-			className="flex items-end gap-1.5 p-1.5"
+			className={cn("flex flex-col p-1.5", dragging && "rounded-2xl ring-2 ring-ring/60")}
 			onSubmit={(e) => {
 				e.preventDefault();
 				act();
 			}}
+			onDragOver={(e) => {
+				if (!onAddPhotos || !Array.from(e.dataTransfer.items).some((i) => i.type.startsWith("image/"))) return;
+				e.preventDefault();
+				setDragging(true);
+			}}
+			onDragLeave={() => setDragging(false)}
+			onDrop={(e) => {
+				setDragging(false);
+				const files = imageFiles(e.dataTransfer.files);
+				if (!onAddPhotos || files.length === 0) return;
+				e.preventDefault();
+				onAddPhotos(files);
+			}}
 		>
+			{photos && photos.length > 0 && (
+				<div className="flex flex-wrap gap-2 px-1 pb-1.5 pt-1" data-testid="composer-photos">
+					{photos.map((p) => (
+						<div key={p.id} className="group relative size-16 overflow-hidden rounded-xl border">
+							{/* eslint-disable-next-line @next/next/no-img-element -- a local data URL preview */}
+							<img src={p.previewUrl} alt="Attached photo" className="size-full object-cover" />
+							<button
+								type="button"
+								aria-label="Remove photo"
+								onClick={() => onRemovePhoto?.(p.id)}
+								className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+							>
+								<XIcon className="size-3" />
+							</button>
+						</div>
+					))}
+				</div>
+			)}
+			{photoError && (
+				<p className="px-2 pb-1 text-xs text-destructive" data-testid="composer-photo-error">
+					Couldn&apos;t attach that photo ({photoError}). Try a JPEG or PNG.
+				</p>
+			)}
+			<div className="flex items-end gap-1.5">
+			{onAddPhotos && <PlusMenu onAddPhotos={onAddPhotos} />}
 			<textarea
 				ref={inputRef}
 				value={value}
@@ -112,6 +166,13 @@ export function Composer({
 						e.preventDefault();
 						act();
 					}
+				}}
+				onPaste={(e) => {
+					// A pasted screenshot attaches; pasted text stays text.
+					const files = imageFiles(e.clipboardData.files);
+					if (!onAddPhotos || files.length === 0) return;
+					e.preventDefault();
+					onAddPhotos(files);
 				}}
 				placeholder={placeholder}
 				autoFocus={autoFocus}
@@ -157,6 +218,89 @@ export function Composer({
 						{busy && !canSend ? <SquareIcon className="size-4" /> : <CornerDownLeftIcon className="size-5" />}
 					</button>
 				)}
+			</div>
 		</form>
+	);
+}
+
+/** The + button (Claude-style): a round ghost button left of the text
+ *  field; its menu opens upward with "Add photos". The file picker takes
+ *  several at once; paste and drag-and-drop work without the menu. */
+function PlusMenu({ onAddPhotos }: { onAddPhotos: (files: File[]) => void }) {
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+	const input = useRef<HTMLInputElement>(null);
+	useEffect(() => {
+		if (!open) return;
+		const close = (e: PointerEvent) => {
+			if (!ref.current?.contains(e.target as Node)) setOpen(false);
+		};
+		const esc = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				e.stopPropagation();
+				setOpen(false);
+			}
+		};
+		document.addEventListener("pointerdown", close);
+		document.addEventListener("keydown", esc, true);
+		return () => {
+			document.removeEventListener("pointerdown", close);
+			document.removeEventListener("keydown", esc, true);
+		};
+	}, [open]);
+	return (
+		<div ref={ref} className="relative shrink-0">
+			<input
+				ref={input}
+				type="file"
+				accept="image/*"
+				multiple
+				hidden
+				data-testid="composer-photo-input"
+				onChange={(e) => {
+					const files = Array.from(e.target.files ?? []);
+					e.target.value = "";
+					if (files.length) onAddPhotos(files);
+				}}
+			/>
+			<Hint label="Add photos" side="top">
+				<button
+					type="button"
+					aria-label="Add photos and more"
+					aria-expanded={open}
+					data-testid="composer-plus"
+					onClick={() => setOpen((o) => !o)}
+					className={cn(
+						"flex size-10 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-all hover:bg-accent hover:text-foreground",
+						open && "bg-accent text-foreground",
+					)}
+				>
+					<PlusIcon className={cn("size-5 transition-transform duration-200", open && "rotate-45")} />
+				</button>
+			</Hint>
+			{open && (
+				<div
+					role="menu"
+					className="absolute bottom-full left-0 z-40 mb-2 flex w-56 flex-col gap-0.5 rounded-xl border bg-card p-1.5 text-sm shadow-xl"
+				>
+					<button
+						type="button"
+						role="menuitem"
+						data-testid="composer-add-photos"
+						onClick={() => {
+							setOpen(false);
+							input.current?.click();
+						}}
+						className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-accent"
+					>
+						<ImageIcon className="size-4 text-muted-foreground" />
+						<span className="flex flex-col">
+							<span>Add photos</span>
+							<span className="text-[11px] text-muted-foreground">Or paste / drop them in</span>
+						</span>
+					</button>
+				</div>
+			)}
+		</div>
 	);
 }

@@ -171,12 +171,19 @@ export function projectView(messages: readonly LhMessage[], live?: LiveTurnState
 		}
 
 		if (role === "user") {
-			const content = m.content as string | Array<{ type: string; text?: string }>;
+			const content = m.content as string | Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
 			const texts =
 				typeof content === "string"
 					? [content]
 					: content.filter((c) => c.type === "text").map((c) => (c as { text: string }).text);
-			out.push({ id: m.id, role: "user", parts: texts.map(textPart) });
+			// Attached photos render as file parts (data URLs) after the text.
+			const photos =
+				typeof content === "string"
+					? []
+					: content
+							.filter((c) => c.type === "image" && c.data && c.mimeType)
+							.map((c) => ({ type: "file" as const, mediaType: c.mimeType!, url: `data:${c.mimeType};base64,${c.data}` }));
+			out.push({ id: m.id, role: "user", parts: [...texts.map(textPart), ...photos] });
 			continue;
 		}
 

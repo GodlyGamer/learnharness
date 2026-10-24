@@ -108,14 +108,38 @@ export function newMessageId(): string {
 // ─── constructors (the input-event → native append mapping lives in
 //     core/input-events.ts; steers in core/contracts/jobs.ts) ─────────────────
 
-/** A learner-authored user message (text input, verdict note). */
-export function newUserMessage(text: string): LhMessage & UserMessage {
+/** A photo the learner attached to a message (base64, no data: prefix). */
+export interface ChatImage {
+	data: string;
+	mimeType: string;
+}
+
+/** A learner-authored user message (text input, verdict note). With
+ *  photos attached (the composer's + button, personal fork 2026-10-24)
+ *  the content becomes blocks: the text (when any), then each image. */
+export function newUserMessage(text: string, images: readonly ChatImage[] = []): LhMessage & UserMessage {
 	return {
 		id: newMessageId(),
 		role: "user",
-		content: text,
+		content: images.length
+			? [
+					...(text.trim() ? [{ type: "text" as const, text }] : []),
+					...images.map((i) => ({ type: "image" as const, data: i.data, mimeType: i.mimeType })),
+				]
+			: text,
 		timestamp: Date.now(),
 	};
+}
+
+/** A user message's text, whatever its shape (plain or blocks); attached
+ *  photos read as "[photo]" so text-only consumers still see them. */
+export function userMessageText(content: unknown): string {
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content
+		.map((c: { type?: string; text?: string }) => (c.type === "text" ? (c.text ?? "") : c.type === "image" ? "[photo]" : ""))
+		.filter(Boolean)
+		.join("\n");
 }
 
 /** A steered user message (mid-turn composer steering, owner 2026-10-03):

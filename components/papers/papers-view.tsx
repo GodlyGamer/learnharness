@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { isModuleCode, type Marking, type MarkingPart } from "@/src/core";
 import { SidebarToggle, useSidebar } from "@/components/sidebar";
+import { toJpeg } from "@/components/photo-utils";
 
 // ─── wire shapes (GET /api/study) ───────────────────────────────────────────
 
@@ -488,20 +489,6 @@ function PairCard({
 
 			{pair.marking && <MarkingReview base={base} onChange={onChange} onError={onError} />}
 		</section>
-	);
-}
-
-/** Any photo → JPEG (attempt files are always Q<n>_p<page>.jpg). Long
- *  edges cap at 3000px: plenty for handwriting, small enough to send. */
-async function toJpeg(file: File): Promise<Blob> {
-	const bitmap = await createImageBitmap(file);
-	const scale = Math.min(1, 3000 / Math.max(bitmap.width, bitmap.height));
-	const canvas = document.createElement("canvas");
-	canvas.width = Math.round(bitmap.width * scale);
-	canvas.height = Math.round(bitmap.height * scale);
-	canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-	return new Promise((resolve, reject) =>
-		canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("could not convert the photo"))), "image/jpeg", 0.9),
 	);
 }
 

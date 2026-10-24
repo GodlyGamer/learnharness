@@ -106,6 +106,19 @@ describe("session logs (the tutor → /make-papers contract)", () => {
 		assert.deepEqual(literals, [...STUDY_OUTCOMES]);
 	});
 
+	it("points the agent at the module's own materials, with absolute paths", () => {
+		const prompt = studyLogPrompt({
+			module: CODE,
+			taxonomy: [],
+			materials: { dir: "D:/study/modules/1M1/materials", files: { lecture_notes: ["notes.pdf"], spec: [], past_papers: ["2024.pdf"] } },
+		});
+		assert.match(prompt, /materials are in D:\/study\/modules\/1M1\/materials/);
+		assert.match(prompt, /- lecture_notes\/ \(1\): notes\.pdf/);
+		assert.match(prompt, /- past_papers\/ \(1\): 2024\.pdf/);
+		assert.doesNotMatch(prompt, /- spec\//, "empty folders are left out");
+		assert.match(studyLogPrompt({ module: CODE, taxonomy: [], materials: { dir: "D:/m", files: { spec: [] } } }), /still empty/);
+	});
+
 	it("maps the app's confidence rail onto 1-5", () => {
 		assert.deepEqual([0, 30, 50, 70, 90, 100].map(confidenceToFive), [1, 2, 3, 4, 5, 5]);
 	});

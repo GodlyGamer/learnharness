@@ -106,6 +106,15 @@ export function moduleExists(code: string): boolean {
 	return isModuleCode(code) && fs.existsSync(moduleDir(code));
 }
 
+/** The module's materials, folder by folder (absolute dir + file names). */
+export function listMaterials(code: string): { dir: string; files: Record<(typeof MATERIAL_FOLDERS)[number], string[]> } {
+	const dir = path.join(moduleDir(code), "materials");
+	const files = Object.fromEntries(
+		MATERIAL_FOLDERS.map((f) => [f, listFiles(path.join(dir, f)).sort()]),
+	) as Record<(typeof MATERIAL_FOLDERS)[number], string[]>;
+	return { dir, files };
+}
+
 export function readTaxonomy(code: string): TaxonomySubSkill[] {
 	return taxonomyEntries(readJson(path.join(moduleDir(code), "taxonomy.json")));
 }
