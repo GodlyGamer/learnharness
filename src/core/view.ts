@@ -106,6 +106,12 @@ function applyResult(part: LhViewPart, result: ToolResultMessage): void {
 	} else {
 		part.state = "output-available";
 		part.output = result.details;
+		// Photos of working ride the result as image blocks (stored once);
+		// hand them back to the answered card next to the answer.
+		const photos = result.content.flatMap((c) => (c.type === "image" ? [{ data: c.data, mimeType: c.mimeType }] : []));
+		if (photos.length && result.details && typeof result.details === "object") {
+			part.output = { ...(result.details as object), photos };
+		}
 	}
 }
 

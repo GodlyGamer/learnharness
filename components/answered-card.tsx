@@ -192,6 +192,20 @@ export function AnsweredCard({ answer, input }: { answer: QuestionAnswerData; in
 				/>
 			)}
 
+			{answer.photos && answer.photos.length > 0 && (
+				<div className="mt-3 flex flex-wrap gap-2" data-testid="answered-photos">
+					{answer.photos.map((p, i) => (
+						// eslint-disable-next-line @next/next/no-img-element -- photos of working live in the record
+						<img
+							key={i}
+							src={`data:${p.mimeType};base64,${p.data}`}
+							alt="Photo of your working"
+							className="max-h-56 max-w-full rounded-lg border object-contain"
+						/>
+					))}
+				</div>
+			)}
+
 			{/* px-3→removed: card p-4 + box px-3 double-inset sat the "Why" label deeper
 			    than the option box edges (owner, round 3). Sides flush with everything
 			    else; py-2 stays for vertical air. */}

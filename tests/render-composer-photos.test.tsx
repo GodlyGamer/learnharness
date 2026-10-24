@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Composer } from "../components/composer.tsx";
+import { QuestionDock } from "../components/question-dock.tsx";
 
 const base = { busy: false, value: "", onChange: () => {}, onSend: () => {}, onStop: () => {}, canSend: false };
 
@@ -30,5 +31,23 @@ describe("the composer's + button", () => {
 		assert.match(html, /src="data:image\/jpeg;base64,x"/);
 		assert.match(html, /aria-label="Remove photo"/);
 		assert.match(html, /unsupported format/);
+	});
+});
+
+describe("the question dock's + button", () => {
+	it("sits in the dock footer, small, next to Submit", () => {
+		const html = renderToStaticMarkup(
+			<QuestionDock
+				toolName="quiz"
+				toolCallId="t1"
+				input={{ question: "Which?", options: [{ label: "A" }, { label: "B" }], correctAnswer: "A", explanation: "" } as never}
+				expanded={true}
+				phase="teach"
+				onExpand={() => {}}
+				onSubmit={() => {}}
+			/>,
+		);
+		assert.match(html, /data-testid="composer-plus"/);
+		assert.match(html, /class="[^"]*size-8[^"]*"[^>]*><svg/);
 	});
 });

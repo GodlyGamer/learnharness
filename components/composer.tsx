@@ -119,24 +119,7 @@ export function Composer({
 				onAddPhotos(files);
 			}}
 		>
-			{photos && photos.length > 0 && (
-				<div className="flex flex-wrap gap-2 px-1 pb-1.5 pt-1" data-testid="composer-photos">
-					{photos.map((p) => (
-						<div key={p.id} className="group relative size-16 overflow-hidden rounded-xl border">
-							{/* eslint-disable-next-line @next/next/no-img-element -- a local data URL preview */}
-							<img src={p.previewUrl} alt="Attached photo" className="size-full object-cover" />
-							<button
-								type="button"
-								aria-label="Remove photo"
-								onClick={() => onRemovePhoto?.(p.id)}
-								className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-							>
-								<XIcon className="size-3" />
-							</button>
-						</div>
-					))}
-				</div>
-			)}
+			{photos && photos.length > 0 && <PhotoStrip photos={photos} onRemove={onRemovePhoto} testid="composer-photos" />}
 			{photoError && (
 				<p className="px-2 pb-1 text-xs text-destructive" data-testid="composer-photo-error">
 					Couldn&apos;t attach that photo ({photoError}). Try a JPEG or PNG.
@@ -223,10 +206,42 @@ export function Composer({
 	);
 }
 
+/** Attached-photo thumbnails with a hover remove control (the composer
+ *  and the question dock share it). */
+export function PhotoStrip({
+	photos,
+	onRemove,
+	testid,
+}: {
+	photos: readonly ChatPhoto[];
+	onRemove?: (id: string) => void;
+	testid?: string;
+}) {
+	return (
+		<div className="flex flex-wrap gap-2 px-1 pb-1.5 pt-1" data-testid={testid}>
+			{photos.map((p) => (
+				<div key={p.id} className="group relative size-16 overflow-hidden rounded-xl border">
+					{/* eslint-disable-next-line @next/next/no-img-element -- a local data URL preview */}
+					<img src={p.previewUrl} alt="Attached photo" className="size-full object-cover" />
+					<button
+						type="button"
+						aria-label="Remove photo"
+						onClick={() => onRemove?.(p.id)}
+						className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+					>
+						<XIcon className="size-3" />
+					</button>
+				</div>
+			))}
+		</div>
+	);
+}
+
 /** The + button (Claude-style): a round ghost button left of the text
  *  field; its menu opens upward with "Add photos". The file picker takes
- *  several at once; paste and drag-and-drop work without the menu. */
-function PlusMenu({ onAddPhotos }: { onAddPhotos: (files: File[]) => void }) {
+ *  several at once; paste and drag-and-drop work without the menu.
+ *  `size` "sm" fits the question dock's footer row. */
+export function PlusMenu({ onAddPhotos, size = "md" }: { onAddPhotos: (files: File[]) => void; size?: "md" | "sm" }) {
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
 	const input = useRef<HTMLInputElement>(null);
@@ -271,11 +286,12 @@ function PlusMenu({ onAddPhotos }: { onAddPhotos: (files: File[]) => void }) {
 					data-testid="composer-plus"
 					onClick={() => setOpen((o) => !o)}
 					className={cn(
-						"flex size-10 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-all hover:bg-accent hover:text-foreground",
+						"flex items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-all hover:bg-accent hover:text-foreground",
+						size === "sm" ? "size-8" : "size-10",
 						open && "bg-accent text-foreground",
 					)}
 				>
-					<PlusIcon className={cn("size-5 transition-transform duration-200", open && "rotate-45")} />
+					<PlusIcon className={cn("transition-transform duration-200", size === "sm" ? "size-4" : "size-5", open && "rotate-45")} />
 				</button>
 			</Hint>
 			{open && (

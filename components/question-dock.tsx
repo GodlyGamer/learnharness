@@ -1,5 +1,7 @@
 "use client";
 
+import { PhotoStrip, PlusMenu } from "@/components/composer";
+import { filesToChatPhotos, type ChatPhoto } from "@/components/photo-utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownIcon, ChevronRightIcon, PlayIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,7 @@ import {
 	parseExplainInput,
 	toggleOption,
 	toggleOther,
+	MAX_CHAT_IMAGES,
 	type AnswerRequest,
 	type AskToolInput,
 	type DockSelection,
@@ -314,6 +317,22 @@ function QuestionDockForm({
 	const [sel, setSel] = useState<DockSelection>(emptyDockSelection());
 	// The learner's transfer channel — thinking, never "a note".
 	const [thinking, setThinking] = useState("");
+	/* Photos of working (personal fork, 2026-10-24): the footer's + button,
+	 * paste or drop — they ride the answer to the model as images. */
+	const [photos, setPhotos] = useState<ChatPhoto[]>([]);
+	const [photoError, setPhotoError] = useState<string | null>(null);
+	const addPhotos = (files: File[]) => {
+		setPhotoError(null);
+		filesToChatPhotos(files)
+			.then((added) => setPhotos((ps) => [...ps, ...added].slice(0, MAX_CHAT_IMAGES)))
+			.catch((e: unknown) => setPhotoError(e instanceof Error ? e.message : String(e)));
+	};
+	const pastePhotos = (e: React.ClipboardEvent) => {
+		const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith("image/"));
+		if (files.length === 0) return;
+		e.preventDefault();
+		addPhotos(files);
+	};
 	const [other, setOther] = useState("");
 	const [text, setText] = useState("");
 	/* Refs MIRROR the two dictation-target fields ("nothing gets lost"
@@ -390,7 +409,8 @@ function QuestionDockForm({
 			// "untouched"); buildAnswer drops it on "I don't know".
 			confidence: kind === "quiz" ? CONFIDENCE_STOPS[confIdx] : undefined,
 		};
-		onSubmit(buildAnswer(qd, req, toolName));
+		const answer = buildAnswer(qd, req, toolName);
+		onSubmit(photos.length ? { ...answer, photos: photos.map(({ data, mimeType }) => ({ data, mimeType })) } : answer);
 	};
 
 	/* ENTER SUBMITS FROM ANYWHERE (owner round 6, 2026-10-05): the same
@@ -822,6 +842,15 @@ function QuestionDockForm({
 					e.preventDefault();
 					submit();
 				}}
+				onDragOver={(e) => {
+					if (Array.from(e.dataTransfer.items).some((i) => i.type.startsWith("image/"))) e.preventDefault();
+				}}
+				onDrop={(e) => {
+					const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+					if (files.length === 0) return;
+					e.preventDefault();
+					addPhotos(files);
+				}}
 			>
 				<div
 					data-testid={qd.mode === "text" ? "answer-field" : "thinking-field"}
@@ -830,6 +859,16 @@ function QuestionDockForm({
 					<div className="px-2.5 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						{qd.mode === "text" ? "Your answer" : "YOUR THINKING"}
 					</div>
+					{photos.length > 0 && (
+						<div className="px-1.5 pt-1">
+							<PhotoStrip photos={photos} onRemove={(id) => setPhotos((ps) => ps.filter((p) => p.id !== id))} testid="dock-photos" />
+						</div>
+					)}
+					{photoError && (
+						<p className="px-2.5 pt-1 text-xs text-destructive">
+							Couldn&apos;t attach that photo ({photoError}). Try a JPEG or PNG.
+						</p>
+					)}
 					{qd.mode === "text" ? (
 						<textarea
 							value={text}
@@ -854,6 +893,7 @@ function QuestionDockForm({
 									submit();
 								}
 							}}
+							onPaste={pastePhotos}
 							placeholder="Type your answer…"
 							rows={1}
 							className="field-sizing-content lh-input max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-2 outline-none placeholder:text-muted-foreground"
@@ -884,6 +924,7 @@ function QuestionDockForm({
 									submit();
 								}
 							}}
+							onPaste={pastePhotos}
 							placeholder="Why this answer? Whatever comes to mind."
 							rows={1}
 							className={cn(
@@ -895,7 +936,8 @@ function QuestionDockForm({
 						/>
 					)}
 					<div className="flex items-center justify-between gap-2 p-1">
-						<span aria-hidden className="pl-1.5 text-xs text-muted-foreground">
+						<PlusMenu onAddPhotos={addPhotos} size="sm" />
+						<span aria-hidden className="mr-auto text-xs text-muted-foreground">
 								{compactionRunning ? "compacting session…" : "↵ submits · ⇧↵ newline"}
 						</span>
 						<Button

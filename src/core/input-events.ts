@@ -193,7 +193,15 @@ export function parseChatInput(input: unknown): ChatInput {
 			if (typeof i.answer !== "object" || i.answer === null) {
 				throw new ChatInputError("answer input requires the graded answer object");
 			}
-			return { type: "answer", toolCallId: i.toolCallId, answer: i.answer as QuestionAnswerData };
+			{
+				const answer = i.answer as QuestionAnswerData;
+				const photos = parseImages(answer.photos);
+				return {
+					type: "answer",
+					toolCallId: i.toolCallId,
+					answer: photos.length ? { ...answer, photos } : (({ photos: _p, ...rest }) => rest)(answer),
+				};
+			}
 		case "continue":
 			return { type: "continue" };
 		case "thinking":

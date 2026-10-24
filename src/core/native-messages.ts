@@ -162,15 +162,22 @@ export function newAnswerResult(
 	toolName: string,
 	answer: unknown,
 ): LhMessage & ToolResultMessage {
+	// Photos of working (the dock's + button) ride ONCE, as image blocks
+	// after the answer text; the stored details keep only their count.
+	const { photos, ...rest } = answer as QuestionAnswerData;
+	const details: QuestionAnswerData = photos?.length ? { ...rest, photoCount: photos.length } : (answer as QuestionAnswerData);
 	return {
 		id: newMessageId(),
 		role: "toolResult",
 		toolCallId,
 		toolName,
-		content: [{ type: "text", text: JSON.stringify(compactAnswerForModel(answer as QuestionAnswerData)) }],
+		content: [
+			{ type: "text", text: JSON.stringify(compactAnswerForModel(answer as QuestionAnswerData)) },
+			...(photos ?? []).map((p) => ({ type: "image" as const, data: p.data, mimeType: p.mimeType })),
+		],
 		// 0.87.1 narrowed ToolResultMessage.details to JsonRepresentation —
 		// our payloads are JSON-safe answer structures, so the cast is honest.
-		details: answer as ToolResultMessage["details"],
+		details: details as unknown as ToolResultMessage["details"],
 		isError: false,
 		timestamp: Date.now(),
 	};

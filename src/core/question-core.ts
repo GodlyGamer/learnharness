@@ -469,6 +469,12 @@ export interface QuestionAnswerData {
 	explanation?: string; // quiz only (rendering)
 	dismissed?: boolean;
 	answeredAt: string;
+	/** Photos of the learner's working, attached with the dock's + button
+	 *  (personal fork, 2026-10-24). They reach the model as image blocks
+	 *  in the tool result; the stored card data keeps only photoCount and
+	 *  the view re-attaches them from the result for rendering. */
+	photos?: { data: string; mimeType: string }[];
+	photoCount?: number;
 }
 
 /** Client-facing question payload — deliberately omits the answer. */
@@ -783,5 +789,8 @@ export function compactAnswerForModel(ad: QuestionAnswerData): Record<string, un
 	const thinking = ad.thinking ?? ad.note;
 	if (thinking) out.thinking = thinking;
 	if (ad.readingThinking) out.thinkingWhileReading = ad.readingThinking;
+	// The photos themselves follow as image blocks; the count says so.
+	const photos = ad.photos?.length ?? ad.photoCount ?? 0;
+	if (photos > 0) out.photosOfWorking = photos;
 	return out;
 }
