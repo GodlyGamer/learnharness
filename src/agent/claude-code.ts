@@ -57,7 +57,7 @@ const MCP_SERVER = "lh";
 const MCP_PREFIX = `mcp__${MCP_SERVER}__`;
 
 /** Appended to every system prompt: how the replayed transcript reads. */
-const TRANSCRIPT_NOTE = `
+export const TRANSCRIPT_NOTE = `
 
 # How this conversation reaches you
 The conversation so far arrives as one message holding a transcript. <learner> blocks are the learner's messages, <you> blocks are your own earlier replies, <tool_call> blocks are tools you called, and <tool_result> blocks are what those calls returned. Continue from the end of the transcript with your next reply. To use a tool, call it through the tool interface; never write <tool_call> or <tool_result> tags yourself.`;

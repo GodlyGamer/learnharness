@@ -21,6 +21,7 @@ import { clampThinkingLevel, getSupportedThinkingLevels, type Api, type Model } 
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { piModels } from "../agent/models.ts";
 import { CLAUDE_CODE_PROVIDER_ID } from "../agent/claude-code.ts";
+import { GEMINI_CLI_PROVIDER_ID, geminiAuthType } from "../agent/gemini-cli.ts";
 import { settingsStore } from "../store/settings.ts";
 import { effectiveSettings } from "./stores.ts";
 import { keyValue } from "./keys.ts";
@@ -129,6 +130,9 @@ export function catalogProviders(): CatalogProvider[] {
 	}));
 	// The Claude subscription takes no key: always present, always in the picker.
 	keyed.push({ id: CLAUDE_CODE_PROVIDER_ID, envVar: "", keyPresent: true });
+	// Gemini on the Google login: listed once the learner has signed in to
+	// the Gemini CLI (an auth type is set), keyless like Claude.
+	keyed.push({ id: GEMINI_CLI_PROVIDER_ID, envVar: "", keyPresent: geminiAuthType() !== null });
 	return keyed.sort((a, b) => a.id.localeCompare(b.id));
 }
 
