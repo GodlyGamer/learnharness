@@ -7,9 +7,8 @@
  * variables move IMMEDIATELY (the section's whole point — it must DO
  * something). Hex inputs commit on blur/Enter; the background derives the
  * raised/accent/edge palette in code (components/settings/appearance.tsx).
- * Mode is dark-only this wave: control rendered DISABLED with a note — the
- * light palette is the design wave's work, and a lying control is worse
- * than an honest disabled one.
+ * Theme: the three Mentaljineer themes as a swatch switch (Dark, Light,
+ * Nocturne); the palettes themselves live in app/globals.css.
  *
  * Graph graying (owner, 2026-09-20) follows the graph viewer's render-panel
  * convention: the whole row dims when a parent is off (stored values
@@ -32,8 +31,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+	APPEARANCE_MODES,
 	EXTRACTION_CHUNK_TOKENS_FLOOR,
 	resolveSettings,
+	type AppearanceMode,
 	type AppearanceSettings,
 	type GraphSettings,
 } from "@/src/core";
@@ -41,7 +42,9 @@ import { MenuShell } from "@/components/menu-shell";
 import { Hint } from "@/components/ui/hint";
 import { useAppearance } from "./appearance.tsx";
 import { FontMenuList } from "./model-menu";
-import { CommitInput, SettingsRow, ThinSelect, Toggle } from "./controls.tsx";
+import { CommitInput, SettingsRow, Toggle } from "./controls.tsx";
+
+const THEME_LABEL: Record<AppearanceMode, string> = { dark: "Dark", light: "Light", nocturne: "Nocturne" };
 
 /** The factory reading family — the DEFAULT row's identity (unset =
  *  this). Exported for tests. */
@@ -186,14 +189,25 @@ export function AppearanceSection({
 
 	return (
 		<>
-			<SettingsRow label="Mode" hint="Coming soon" testid="row-mode" dimmed>
-				<ThinSelect value="dark" ariaLabel="mode" onChange={() => {}} testid="select-mode" disabled>
-					<option value="dark">Dark</option>
-				</ThinSelect>
+			<SettingsRow label="Theme" hint={THEME_LABEL[resolved.mode]} testid="row-mode">
+				<div className="lh-theme-switch lh-glass lh-glass-sm" role="group" aria-label="theme" data-testid="select-mode">
+					{APPEARANCE_MODES.map((mode) => (
+						<button
+							key={mode}
+							type="button"
+							aria-pressed={resolved.mode === mode}
+							aria-label={THEME_LABEL[mode]}
+							title={THEME_LABEL[mode]}
+							onClick={() => onSectionChange({ ...appearance, mode })}
+						>
+							<span className={`lh-swatch lh-swatch--${mode}`} />
+						</button>
+					))}
+				</div>
 			</SettingsRow>
 			<SettingsRow
 				label="Background"
-				hint={`Empty = ${resolved.background ?? "#141414"}`}
+				hint={`Empty = ${resolved.background ?? "the theme's ground"}`}
 				testid="row-background"
 			>
 				<CommitInput
@@ -290,7 +304,7 @@ export function AppearanceSection({
 			</SettingsRow>
 			<SettingsRow label="Session names in serif" testid="row-session-serif">
 				<Toggle
-					checked={appearance?.sessionNameSerif ?? true}
+					checked={appearance?.sessionNameSerif ?? false}
 					label="session names serif"
 					onChange={(on) => onSectionChange({ ...appearance, sessionNameSerif: on })}
 				/>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatSettings, ModelCatalogEntry, ModelCatalogResponse, ModelsSettings, UserSettings } from "@/src/core";
+import { withDefaultSlots, type ChatSettings, type ModelCatalogEntry, type ModelCatalogResponse, type ModelsSettings, type UserSettings } from "@/src/core";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { prettyModel } from "@/components/usage-format";
 import { ModelMenuList, ThinkingMenuList } from "@/components/settings/model-menu";
@@ -138,7 +138,8 @@ export function ModelControl({ chatId }: { chatId?: string }) {
 	// falling back to the strong slot for legacy unstamped sessions —
 	// EXACTLY what resolveConversationSpec runs. Draft mode is the strong
 	// slot itself.
-	const strong = models?.strong;
+	// Personal fork: an unpinned strong slot displays its subscription floor.
+	const strong = withDefaultSlots(models).strong;
 	const override: ChatSettings | undefined = chatId
 		? {
 				model: session?.model ?? strong?.model,

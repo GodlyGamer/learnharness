@@ -15,7 +15,6 @@
  * its own save), the same re-read pattern chat.tsx uses for "models".
  */
 
-import { useCallback, useEffect, useState } from "react";
 import type { AuthKeyStatus } from "@/src/core";
 import { classifyKeys, type ProviderKeyInfo } from "@/components/settings/keys-section";
 import { useModelCatalog } from "@/components/model-picker";
@@ -34,28 +33,12 @@ export function hasProviderKey(
 	return classifyKeys(statuses, providers).providerRows.some((s) => s.present);
 }
 
-/** The zero-keys truth for the calling page: TRUE only after a
- *  successful read says no provider key exists (pending and failed
- *  reads render nothing — the pill must never flash on a gap, and a
- *  failed read claiming "zero keys" would be a lie the CTA flow then
- *  leans on). Re-reads on the keys signal. */
+/** The zero-keys truth for the calling page. Personal fork: the Claude
+ *  subscription engine needs no key, so a key-less machine still has
+ *  models — the "Add a provider key" pill never shows. (The setup dialog
+ *  and Keys page still work for adding other providers.) */
 export function useZeroKeys(): boolean {
-	const [zeroKeys, setZeroKeys] = useState(false);
-	const read = useCallback(() => {
-		fetch("/api/keys")
-			.then((r) => r.json())
-			.then((body: { keys?: AuthKeyStatus[]; providers?: ProviderKeyInfo[] }) => {
-				setZeroKeys(!hasProviderKey(body.keys ?? [], body.providers));
-			})
-			.catch(() => {});
-	}, []);
-	useEffect(() => {
-		read();
-	}, [read]);
-	useSettingsSaved((section) => {
-		if (section === "keys") read();
-	});
-	return zeroKeys;
+	return false;
 }
 
 /** The pill itself — the models CTA's chrome and placement, the keys

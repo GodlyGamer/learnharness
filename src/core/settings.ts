@@ -298,10 +298,14 @@ export interface MdRenderingSettings {
 	italicColor?: string | null;
 }
 
+/** The three Mentaljineer themes (data-theme on <html>). */
+export const APPEARANCE_MODES = ["dark", "light", "nocturne"] as const;
+export type AppearanceMode = (typeof APPEARANCE_MODES)[number];
+
 /** Appearance settings — mode, colors, type, markdown emphasis. */
 export interface AppearanceSettings {
-	/** "dark" | "light" (default dark). */
-	mode?: "dark" | "light";
+	/** The Mentaljineer themes: "dark" (default) | "light" | "nocturne". */
+	mode?: AppearanceMode;
 	/** The one user-chosen color; everything else derives per-mode in code.
 	 *  null = the mode's default background. */
 	background?: string | null;
@@ -311,7 +315,8 @@ export interface AppearanceSettings {
 	/** Reading font size in px (12–24, default 16). Headings render as
 	 *  multiples of this, so one knob scales the document coherently. */
 	proseFontSize?: number;
-	/** Session names in CMU Serif (default true — today's look). */
+	/** Session names in CMU Serif (default false: Geist light, the
+	 *  Mentaljineer display face). */
 	sessionNameSerif?: boolean;
 	mdRendering?: MdRenderingSettings;
 }
@@ -402,7 +407,7 @@ export interface FactorySettings {
 	version: number;
 	general: Required<GeneralSettings>;
 	appearance: {
-		mode: "dark" | "light";
+		mode: AppearanceMode;
 		background: string | null;
 		fontFamily: string | null;
 		proseFontSize: number;
@@ -422,11 +427,11 @@ export const FACTORY_SETTINGS: FactorySettings = {
 	general: { autoUpdate: true },
 	appearance: {
 		mode: "dark",
-		background: null, // the dark default (#141414) lives in the mode's derivation curve
+		background: null, // each theme's own ground (globals.css)
 		fontFamily: null, // Source Sans 3
 		proseFontSize: 16,
-		sessionNameSerif: true,
-		mdRendering: { headingWeight: 900, boldColor: null, italicColor: null },
+		sessionNameSerif: false,
+		mdRendering: { headingWeight: 700, boldColor: null, italicColor: null },
 	},
 	graph: { enabled: true, rendering: true, extractionChunkTokens: 4096 },
 	compaction: { thresholdTokens: 150_000 },
@@ -568,7 +573,7 @@ function sanitizeMdRendering(raw: unknown): MdRenderingSettings {
 
 function sanitizeAppearance(raw: Record<string, unknown>): AppearanceSettings {
 	const out: AppearanceSettings = {};
-	if (raw.mode === "dark" || raw.mode === "light") out.mode = raw.mode;
+	if (raw.mode === "dark" || raw.mode === "light" || raw.mode === "nocturne") out.mode = raw.mode;
 	if (raw.background !== undefined) out.background = sanitizeHexOrNull(raw.background);
 	if (raw.fontFamily !== undefined) {
 		out.fontFamily = typeof raw.fontFamily === "string" && raw.fontFamily.trim() ? raw.fontFamily : null;

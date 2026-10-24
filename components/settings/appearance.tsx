@@ -7,9 +7,9 @@
  * Why variables and not className swaps: every seam the settings touch was
  * built token-first (--font-prose, --lh-prose-size, --lh-ink-strong, …),
  * so application is setProperty and nothing re-renders. The ONE thing the
- * variables can't reach — the mode — is dark-only this wave (the light
- * palette is designed in the later design wave; <html class="dark"> is
- * static in app/layout.tsx).
+ * variables can't reach — the mode — is a data-theme attribute on <html>
+ * (Mentaljineer themes: dark / light / nocturne, palettes in globals.css),
+ * with the .dark class kept in step for Tailwind's dark variant.
  *
  * The provider is mounted at the ROOT LAYOUT level (like ActivityProvider):
  * every page picks appearance up on load. The settings page writes a
@@ -83,10 +83,14 @@ export function appearanceVars(a: ReturnType<typeof resolveAppearance>): Record<
 	// The ONE documented reading-size variable (typography round 4): prose,
 	// inputs, and session titles all read it, so one setProperty moves them.
 	vars["--lh-prose-size"] = `${a.proseFontSize}px`;
-	// Session names: CMU Serif by default; the toggle swaps the title font
-	// to the prose family — covers chat.tsx + new-session.tsx titles with
-	// zero component edits (they use the .font-title utility).
-	if (!a.sessionNameSerif) vars["--font-title"] = "var(--font-prose)";
+	// Session names: Geist light by default (the stylesheet's --font-title);
+	// the toggle swaps in CMU Serif bold — covers chat.tsx + new-session.tsx
+	// titles with zero component edits (they use the .font-title utility).
+	if (a.sessionNameSerif) {
+		vars["--font-title"] = `"lh-cmu", serif`;
+		vars["--lh-title-weight"] = "700";
+		vars["--lh-title-tracking"] = "0";
+	}
 	// Markdown rendering: heading weight + the emphasis inks (the vars
 	// were built "ready for the settings UI").
 	vars["--lh-heading-weight"] = String(a.mdRendering.headingWeight);
@@ -150,6 +154,20 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
 			appliedNamesRef.current.add(name);
 		}
 	}, [key, vars]);
+
+	// The theme: palettes live in globals.css under [data-theme]; the .dark
+	// class follows so Tailwind's dark: variant matches the ground. The mode
+	// is mirrored to localStorage so the boot script (app/layout.tsx) paints
+	// the right theme before this fetch lands.
+	const mode = resolveAppearance(delta).mode;
+	useEffect(() => {
+		const root = document.documentElement;
+		root.dataset.theme = mode;
+		root.classList.toggle("dark", mode !== "light");
+		try {
+			localStorage.setItem("lh-theme", mode);
+		} catch {/* storage blocked: the boot script falls back to dark */}
+	}, [mode]);
 
 	// One fetch per app load: the record (sanitized server-side) carries the
 	// delta; resolution happens here against the compiled factory.
