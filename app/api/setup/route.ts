@@ -8,7 +8,7 @@
  *                      binary for its status — call it once, then poll ?live).
  *   GET ?live=1      → only the in-progress jobs (cheap; for polling).
  *   POST {action}    → claude-login | claude-code {code} | gemini-install |
- *                      gemini-login | paper-tools-install | finish
+ *                      gemini-login | gemini-relogin | paper-tools-install | finish
  */
 
 import {
@@ -24,6 +24,7 @@ import {
 	paperToolsStatus,
 	startClaudeLogin,
 	startGeminiInstall,
+	signOutGemini,
 	startGeminiLogin,
 	submitClaudeCode,
 	workspaceInfo,
@@ -63,6 +64,9 @@ export async function POST(req: Request) {
 			case "gemini-install":
 				return Response.json(startGeminiInstall());
 			case "gemini-login":
+				return Response.json(startGeminiLogin());
+			case "gemini-relogin":
+				signOutGemini();
 				return Response.json(startGeminiLogin());
 			case "paper-tools-install":
 				return Response.json(installPaperTools());

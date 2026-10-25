@@ -241,3 +241,12 @@ export function startGeminiInstall(): GeminiInstall {
 export function geminiInstallState(): GeminiInstall | null {
 	return install;
 }
+
+/** Forget the saved Google sign-in (the token Antigravity keeps under the
+ *  Gemini home). Use before signing in again when Google has signed the
+ *  learner out. */
+export function signOutGemini(): void {
+	stopAntigravity();
+	const home = process.env.GEMINI_HOME ?? path.join(os.homedir(), ".gemini");
+	fs.rmSync(path.join(home, "antigravity-acp", "acp_token.json"), { force: true });
+}

@@ -203,7 +203,12 @@ export function MachineSetup({ onFinish }: { onFinish?: () => void }) {
 						)}
 					</>
 				) : status.gemini.signedIn ? (
-					<p className="mt-2 text-sm text-muted-foreground">Installed (version {status.gemini.version}) and signed in with Google.</p>
+					<>
+						<p className="mt-2 text-sm text-muted-foreground">Installed (version {status.gemini.version}) and signed in with Google.</p>
+						<button type="button" className={`${pill} mt-3`} onClick={() => void act("gemini-relogin")}>
+							Sign in again
+						</button>
+					</>
 				) : busy(status.geminiLogin) ? (
 					<div className="mt-2 flex flex-col gap-2 text-sm">
 						<p className="text-muted-foreground">
