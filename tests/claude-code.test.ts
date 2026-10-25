@@ -67,3 +67,28 @@ describe("the Claude subscription engine", () => {
 		assert.equal(texts.length, 5);
 	});
 });
+
+describe("transcript styles", () => {
+	const history = [
+		{ role: "user", content: "Quiz me.", timestamp: 0 },
+		{
+			role: "assistant",
+			content: [{ type: "toolCall", id: "c1", name: "quiz", arguments: { question: "2+2?" } }],
+			timestamp: 1,
+		},
+		{ role: "toolResult", toolCallId: "c1", toolName: "quiz", content: [{ type: "text", text: "answered a" }], isError: false, timestamp: 2 },
+	] as unknown as Parameters<typeof transcriptBlocks>[0];
+
+	it("Claude's tag style is unchanged", () => {
+		const text = transcriptBlocks(history).map((b) => (b.type === "text" ? b.text : "")).join("\n");
+		assert.match(text, /<tool_call id="c1" name="quiz">/);
+		assert.match(text, /<tool_result id="c1" name="quiz">/);
+	});
+
+	it("the prose style writes no tags at all", () => {
+		const text = transcriptBlocks(history, "prose").map((b) => (b.type === "text" ? b.text : "")).join("\n");
+		assert.doesNotMatch(text, /<tool_call|<tool_result/);
+		assert.match(text, /You used the quiz tool with/);
+		assert.match(text, /The quiz tool returned: answered a/);
+	});
+});

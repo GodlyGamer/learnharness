@@ -62,6 +62,14 @@ export const TRANSCRIPT_NOTE = `
 # How this conversation reaches you
 The conversation so far arrives as one message holding a transcript. <learner> blocks are the learner's messages, <you> blocks are your own earlier replies, <tool_call> blocks are tools you called, and <tool_result> blocks are what those calls returned. Continue from the end of the transcript with your next reply. To use a tool, call it through the tool interface; never write <tool_call> or <tool_result> tags yourself.`;
 
+/** Gemini's note. Its history shows earlier tool calls as plain sentences,
+ *  never as tags: a model that sees tag-shaped calls in its own history
+ *  starts writing them as text, which the learner then sees (2026-10-25). */
+export const TRANSCRIPT_NOTE_PROSE = `
+
+# How this conversation reaches you
+The conversation so far arrives as one message holding a transcript. <learner> blocks are the learner's messages, <you> blocks are your own earlier replies. Tool use and its results appear as plain sentences inside the transcript ("You used the quiz tool with …", "The quiz tool returned …"). Continue from the end of the transcript with your next reply. To use a tool, call it through the tool interface only; never write tool calls or results as text.`;
+
 export function claudeCodeProvider(anthropicModels: readonly Model<Api>[]): Provider {
 	const models = SUBSCRIPTION_MODEL_IDS.flatMap((id) => {
 		const found = anthropicModels.find((m) => m.id === id);
@@ -152,7 +160,7 @@ function imageBlock(img: ImageContent): PromptBlock {
  * in the tag notation TRANSCRIPT_NOTE explains. Thinking from earlier
  * turns is not replayed (its signatures only bind to native history).
  */
-export function transcriptBlocks(messages: readonly Message[]): PromptBlock[] {
+export function transcriptBlocks(messages: readonly Message[], style: "tags" | "prose" = "tags"): PromptBlock[] {
 	const convo = messages.filter((m) => m.role !== "system");
 	const only = convo.length === 1 ? convo[0] : undefined;
 	if (only?.role === "user") {
@@ -169,14 +177,21 @@ export function transcriptBlocks(messages: readonly Message[]): PromptBlock[] {
 			for (const c of m.content) {
 				if (c.type === "text" && c.text.trim()) parts.push(c.text);
 				else if (c.type === "toolCall")
-					parts.push(`<tool_call id="${c.id}" name="${c.name}">${JSON.stringify(c.arguments)}</tool_call>`);
+					parts.push(
+						style === "prose"
+							? `(You used the ${c.name} tool with ${JSON.stringify(c.arguments)}.)`
+							: `<tool_call id="${c.id}" name="${c.name}">${JSON.stringify(c.arguments)}</tool_call>`,
+					);
 			}
 			if (parts.length) blocks.push({ type: "text", text: `<you>\n${parts.join("\n")}\n</you>` });
 		} else if (m.role === "toolResult") {
 			const status = m.isError ? ' error="true"' : "";
 			blocks.push({
 				type: "text",
-				text: `<tool_result id="${m.toolCallId}" name="${m.toolName}"${status}>\n${textOf(m.content)}\n</tool_result>`,
+				text:
+					style === "prose"
+						? `(The ${m.toolName} tool ${m.isError ? "failed and returned" : "returned"}: ${textOf(m.content)})`
+						: `<tool_result id="${m.toolCallId}" name="${m.toolName}"${status}>\n${textOf(m.content)}\n</tool_result>`,
 			});
 			for (const c of m.content) if (c.type === "image") blocks.push(imageBlock(c));
 		}
