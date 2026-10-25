@@ -60,6 +60,18 @@ export const ANTIGRAVITY_PROVIDER_ID = "antigravity";
 export const ANTIGRAVITY_API = "antigravity-acp";
 export const ANTIGRAVITY_VERSION = "1.4.3";
 
+/** Antigravity's own system prompt is written for a coding assistant, and
+ *  the server only lets us APPEND to it. This opens the append with the
+ *  teacher's role and the tool reality, so Gemini doesn't drift into a
+ *  coding-assistant voice or try its built-in file/terminal tools (those
+ *  requests are refused here, and the fallback was writing text instead of
+ *  calling the app's picture and demo jobs). */
+export const ANTIGRAVITY_TEACHER_PREAMBLE = `You are the teacher in LearnHarness, a tutoring app. You are not a coding assistant: do not write code unless the learner asks for code, and do not describe yourself as an assistant or an AI model.
+
+Your own built-in tools (reading and writing files, the terminal, the browser) are NOT available in this app and will be refused. Use only the tools listed for you here. For a picture or a diagram, call the app's drawing or visual tool as instructed below; never write a picture as text, ASCII art or a code block in place of calling it.
+
+`;
+
 /** What Antigravity offers on a Google sign-in. A Google AI Plus account
  *  gets Gemini 3.8 Flash; other tiers may list more (session/new reports
  *  them), and a model the tier lacks fails with the server's own message. */
@@ -433,7 +445,7 @@ async function run(
 		const session = (await server.request("session/new", {
 			cwd,
 			mcpServers: tools.length ? [{ type: "http", name: "lh", url: toolServer.url, headers: [] }] : [],
-			_meta: { antigravity: { systemPrompt: { append: getCurrentSystemPrompt(context.messages) + TRANSCRIPT_NOTE } } },
+			_meta: { antigravity: { systemPrompt: { append: ANTIGRAVITY_TEACHER_PREAMBLE + getCurrentSystemPrompt(context.messages) + TRANSCRIPT_NOTE } } },
 		})) as { sessionId?: string };
 		if (!session.sessionId) throw new Error("Antigravity did not start a session");
 		const sid = session.sessionId;

@@ -71,7 +71,8 @@ describe("the Gemini (Google sign-in, Antigravity) engine", () => {
 			model: string;
 			permission: { builtin: string; ours: string };
 		};
-		assert.match(seen.appendedPrompt, /^You are a tutor\./);
+		assert.match(seen.appendedPrompt, /^You are the teacher in LearnHarness/);
+		assert.match(seen.appendedPrompt, /You are a tutor\./);
 		assert.match(seen.appendedPrompt, /How this conversation reaches you/);
 		assert.equal(seen.model, "gemini-3.8-flash");
 		assert.equal(seen.permission.builtin, "deny", "Antigravity's built-in tools are denied");
