@@ -606,8 +606,25 @@ function broadcastUpdateStatus(status) {
 	}
 }
 
+/** Settings → General → Auto-update. The shell reads the learner's record
+ *  straight from the workspace (the server owns the file; the default is on).
+ *  Only automatic checks respect it — "Check for Updates…" always works. */
+function autoUpdateEnabled() {
+	if (!workspace) return true;
+	try {
+		const record = JSON.parse(fs.readFileSync(path.join(workspace, "data", "settings.json"), "utf-8").replace(/^﻿/, ""));
+		return record?.general?.autoUpdate !== false;
+	} catch {
+		return true;
+	}
+}
+
 function checkForUpdates({ manual = false } = {}) {
 	if (!autoUpdater) return;
+	if (!manual && !autoUpdateEnabled()) {
+		log("auto-update: automatic checks are off in Settings");
+		return;
+	}
 	autoUpdater
 		.checkForUpdates()
 		.then((result) => {
